@@ -6,3 +6,7 @@ fake6502.o: fake6502.c
 fake2a03.o: fake6502.c
 	$(CC) -DNESCPU -c $(CFLAGS) fake6502.c -o $@
 
+.PHONY: clean
+clean:
+	rm *.o
+	
