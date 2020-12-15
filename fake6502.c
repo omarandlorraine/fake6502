@@ -447,6 +447,10 @@ void dec(context_t * c) {
 	putvalue(c, decrement(c, getvalue(c)));
 }
 
+void dea(context_t * c) {
+	c->a = decrement(c, c->a);
+}
+
 void dex(context_t * c) {
 	c->x = decrement(c, c->x);
 }
@@ -474,6 +478,10 @@ uint8_t increment(context_t * c, uint8_t r) {
 
 void inc(context_t * c) {
 	putvalue(c, increment(c, getvalue(c)));
+}
+
+void ina(context_t * c) {
+	c->a = increment(c, c->a);
 }
 
 void inx(context_t * c) {
