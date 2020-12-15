@@ -413,9 +413,9 @@ void clv(context_t * c) {
     clearoverflow(c);
 }
 
-void cmp(context_t * c) {
+void compare(context_t * c, uint16_t r) {
     uint16_t value = getvalue(c);
-    uint16_t result = (uint16_t)c->a - value;
+    uint16_t result = r - value;
    
     if (c->a >= (uint8_t)(value & 0x00FF)) setcarry(c);
         else clearcarry(c);
@@ -424,26 +424,16 @@ void cmp(context_t * c) {
     signcalc(c, result);
 }
 
+void cmp(context_t * c) {
+	compare(c, c->a);
+}
+
 void cpx(context_t * c) {
-    uint16_t value = getvalue(c);
-    uint16_t result = (uint16_t)c->x - value;
-   
-    if (c->x >= (uint8_t)(value & 0x00FF)) setcarry(c);
-        else clearcarry(c);
-    if (c->x == (uint8_t)(value & 0x00FF)) setzero(c);
-        else clearzero(c);
-    signcalc(c, result);
+	compare(c, c->x);
 }
 
 void cpy(context_t * c) {
-    uint16_t value = getvalue(c);
-    uint16_t result = (uint16_t)c->y - value;
-   
-    if (c->y >= (uint8_t)(value & 0x00FF)) setcarry(c);
-        else clearcarry(c);
-    if (c->y == (uint8_t)(value & 0x00FF)) setzero(c);
-        else clearzero(c);
-    signcalc(c, result);
+	compare(c, c->y);
 }
 
 void dec(context_t * c) {
