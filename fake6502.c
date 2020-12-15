@@ -437,12 +437,11 @@ void cpy(context_t * c) {
 }
 
 uint8_t decrement(context_t * c, uint8_t r) {
-	uint16_t result = r;
+	uint16_t result = r - 1;
     zerocalc(c, result);
     signcalc(c, result);
 	return result;
 }
-	
 
 void dec(context_t * c) {
 	putvalue(c, decrement(c, getvalue(c)));
@@ -466,28 +465,23 @@ void eor(context_t * c) {
     saveaccum(c, result);
 }
 
-void inc(context_t * c) {
-    uint16_t value = getvalue(c);
-    uint16_t result = value + 1;
-   
+uint8_t increment(context_t * c, uint8_t r) {
+	uint16_t result = r + 1;
     zerocalc(c, result);
     signcalc(c, result);
-   
-    putvalue(c, result);
+	return result;
+}
+
+void inc(context_t * c) {
+	putvalue(c, increment(c, getvalue(c)));
 }
 
 void inx(context_t * c) {
-    c->x++;
-   
-    zerocalc(c, c->x);
-    signcalc(c, c->x);
+	c->x = increment(c, c->x);
 }
 
 void iny(context_t * c) {
-    c->y++;
-   
-    zerocalc(c, c->y);
-    signcalc(c, c->y);
+	c->y = increment(c, c->y);
 }
 
 void jmp(context_t * c) {
