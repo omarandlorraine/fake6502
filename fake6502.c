@@ -554,6 +554,14 @@ void pha(context_t * c) {
     push8(c, c->a);
 }
 
+void phx(context_t * c) {
+    push8(c, c->x);
+}
+
+void phy(context_t * c) {
+    push8(c, c->y);
+}
+
 void php(context_t * c) {
     push8(c, c->flags | FLAG_BREAK);
 }
@@ -563,6 +571,20 @@ void pla(context_t * c) {
    
     zerocalc(c, c->a);
     signcalc(c, c->a);
+}
+
+void plx(context_t * c) {
+    c->x = pull8(c);
+   
+    zerocalc(c, c->x);
+    signcalc(c, c->x);
+}
+
+void ply(context_t * c) {
+    c->y = pull8(c);
+   
+    zerocalc(c, c->y);
+    signcalc(c, c->y);
 }
 
 void plp(context_t * c) {
