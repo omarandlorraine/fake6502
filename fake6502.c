@@ -676,6 +676,10 @@ void sty(context_t * c) {
     putvalue(c, c->y);
 }
 
+void stz(context_t * c) {
+    putvalue(c, 0);
+}
+
 void tax(context_t * c) {
     c->x = c->a;
    
