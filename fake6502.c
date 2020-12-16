@@ -780,6 +780,7 @@ static void (*addrtable[256])(context_t * c) = {
 /* F */     rel, indy,  imp, indy,  zpx,  zpx,  zpx,  zpx,  imp, absy,  imp, absy, absx, absx, absx, absx  /* F */
 };
 
+#ifdef NMOS6502
 void (*optable[256])(context_t * c) = {
 /*        |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  A  |  B  |  C  |  D  |  E  |  F  |      */
 /* 0 */      brk,  ora,  nop,  slo,  nop,  ora,  asl,  slo,  php,  ora,  asl,  nop,  nop,  ora,  asl,  slo, /* 0 */
@@ -799,6 +800,28 @@ void (*optable[256])(context_t * c) = {
 /* E */      cpx,  sbc,  nop,  isb,  cpx,  sbc,  inc,  isb,  inx,  sbc,  nop,  sbc,  cpx,  sbc,  inc,  isb, /* E */
 /* F */      beq,  sbc,  nop,  isb,  nop,  sbc,  inc,  isb,  sed,  sbc,  nop,  isb,  nop,  sbc,  inc,  isb  /* F */
 };
+#endif // NMOS6502
+
+#ifdef CMOS6502
+void (*optable[256])(context_t * c) = {
+/* 0 */      brk,  ora,  0,    0,    0,    ora,  asl,  0,    php,  ora,  asl,  0,    0,    ora,  asl,  0, 
+/* 1 */      bpl,  ora,  ora,  0,    0,    ora,  asl,  0,    clc,  ora,  inc,  0,    0,    ora,  asl,  0,
+/* 2 */      jsr,  and,  0,    0,    bit,  and,  rol,  0,    plp,  and,  rol,  0,    bit,  and,  rol,  0,
+/* 3 */      bmi,  and,  and,  0,    bit,  and,  rol,  0,    sec,  and,  dec,  0,    bit,  and,  rol,  0,
+/* 4 */      rti,  eor,  0,    0,    0,    eor,  lsr,  0,    pha,  eor,  lsr,  0,    jmp,  eor,  lsr,  0,
+/* 5 */      bvc,  eor,  eor,  0,    0,    eor,  lsr,  0,    cli,  eor,  phy,  0,    0,    eor,  lsr,  0,  
+/* 6 */      rts,  adc,  0,    0,    stz,  adc,  ror,  0,    pla,  adc,  ror,  0,    jmp,  adc,  ror,  0,  
+/* 7 */      bvs,  adc,  adc,  0,    stz,  adc,  ror,  0,    sei,  adc,  ply,  0,    jmp,  adc,  ror,  0,
+/* 8 */      bra,  sta,  0,    0,    sty,  sta,  stx,  0,    dey,  bit,  txa,  0,    sty,  sta,  stx,  0,
+/* 9 */      bcc,  sta,  sta,  0,    sty,  sta,  stx,  0,    tya,  sta,  txs,  0,    stz,  sta,  stz,  0,
+/* A */      ldy,  lda,  ldx,  0,    ldy,  lda,  ldx,  0,    tay,  lda,  tax,  0,    ldy,  lda,  ldx,  0,
+/* B */      bcs,  lda,  lda,  0,    ldy,  lda,  ldx,  0,    clv,  lda,  tsx,  0,    ldy,  lda,  ldx,  0,
+/* C */      cpy,  cmp,  0,    0,    cpy,  cmp,  dec,  0,    iny,  cmp,  dex,  0,    cpy,  cmp,  dec,  0,
+/* D */      bne,  cmp,  cmp,  0,    0,    cmp,  dec,  0,    cld,  cmp,  phx,  0,    0,    cmp,  dec,  0,
+/* E */      cpx,  sbc,  0,    0,    cpx,  sbc,  inc,  0,    inx,  sbc,  nop,  0,    cpx,  sbc,  inc,  0,
+/* F */      beq,  sbc,  sbc,  0,    0,    sbc,  inc,  0,    sed,  sbc,  plx,  0,    0,    sbc,  inc,  0
+};
+#endif // CMOS6502
 
 static const uint8_t ticktable[256] = {
 /*        |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  A  |  B  |  C  |  D  |  E  |  F  |     */
