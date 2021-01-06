@@ -856,10 +856,12 @@ uint16_t getPC(context_t * c) {
 }
 
 void irq6502(context_t * c) {
-    push16(c, c->pc);
-    push8(c, c->flags);
-    c->flags |= FLAG_INTERRUPT;
-    c->pc = (uint16_t)mem_read(c, 0xFFFE) | ((uint16_t)mem_read(c, 0xFFFF) << 8);
+    if((c->flags & FLAG_INTERRUPT) == 0) {
+        push16(c, c->pc);
+        push8(c, c->flags);
+        c->flags |= FLAG_INTERRUPT;
+        c->pc = (uint16_t)mem_read(c, 0xFFFE) | ((uint16_t)mem_read(c, 0xFFFF) << 8);
+    }
 }
 
 uint8_t callexternal = 0;
