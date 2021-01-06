@@ -588,7 +588,7 @@ void ply(context_t * c) {
 }
 
 void plp(context_t * c) {
-    c->flags = pull8(c) | FLAG_CONSTANT;
+    c->flags = (pull8(c) | FLAG_CONSTANT) & ~FLAG_BREAK;
 }
 
 void rol(context_t * c) {
@@ -615,7 +615,7 @@ void ror(context_t * c) {
 }
 
 void rti(context_t * c) {
-    c->flags = pull8(c);
+    c->flags = (pull8(c) | FLAG_CONSTANT) & ~FLAG_BREAK;
     c->pc = pull16(c);
 }
 
@@ -856,10 +856,12 @@ uint16_t getPC(context_t * c) {
 }
 
 void irq6502(context_t * c) {
-    push16(c, c->pc);
-    push8(c, c->flags);
-    c->flags |= FLAG_INTERRUPT;
-    c->pc = (uint16_t)mem_read(c, 0xFFFE) | ((uint16_t)mem_read(c, 0xFFFF) << 8);
+    if((c->flags & FLAG_INTERRUPT) == 0) {
+        push16(c, c->pc);
+        push8(c, c->flags);
+        c->flags |= FLAG_INTERRUPT;
+        c->pc = (uint16_t)mem_read(c, 0xFFFE) | ((uint16_t)mem_read(c, 0xFFFF) << 8);
+    }
 }
 
 uint8_t callexternal = 0;
