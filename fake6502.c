@@ -588,7 +588,7 @@ void ply(context_t * c) {
 }
 
 void plp(context_t * c) {
-    c->flags = pull8(c) | FLAG_CONSTANT;
+    c->flags = (pull8(c) | FLAG_CONSTANT) & ~FLAG_BREAK;
 }
 
 void rol(context_t * c) {
@@ -615,7 +615,7 @@ void ror(context_t * c) {
 }
 
 void rti(context_t * c) {
-    c->flags = pull8(c);
+    c->flags = (pull8(c) | FLAG_CONSTANT) & ~FLAG_BREAK;
     c->pc = pull16(c);
 }
 
