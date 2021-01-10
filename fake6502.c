@@ -182,8 +182,8 @@ uint8_t pull8(context_t * c) {
 }
 
 void reset6502(context_t * c) {
-    // pc = ((uint16_t)mem_read(0xfffc) | ((uint16_t)mem_read(0xfffd) << 8));
-    c->pc = 0xff00;
+    c->pc = ((uint16_t)mem_read(c, 0xfffc) | ((uint16_t)mem_read(c, 0xfffd) << 8));
+    //c->pc = 0xff00;
 
     c->a = 0;
     c->x = 0;
@@ -415,9 +415,9 @@ void compare(context_t * c, uint16_t r) {
     uint16_t value = getvalue(c);
     uint16_t result = r - value;
    
-    if (c->a >= (uint8_t)(value & 0x00FF)) setcarry(c);
+    if (r >= (uint8_t)(value & 0x00FF)) setcarry(c);
         else clearcarry(c);
-    if (c->a == (uint8_t)(value & 0x00FF)) setzero(c);
+    if (r == (uint8_t)(value & 0x00FF)) setzero(c);
         else clearzero(c);
     signcalc(c, result);
 }
