@@ -182,13 +182,17 @@ uint8_t pull8(context_t * c) {
 }
 
 void reset6502(context_t * c) {
+	// The 6502 normally does some fake reads after reset because
+	// reset is a hacked-up version of NMI/IRQ/BRK
+	// See https://www.pagetable.com/?p=410
+	mem_read(0x00ff);
+	mem_read(0x00ff);
+	mem_read(0x00ff);
+	mem_read(0x0100);
+	mem_read(0x01ff);
+	mem_read(0x01fe);
     c->pc = ((uint16_t)mem_read(c, 0xfffc) | ((uint16_t)mem_read(c, 0xfffd) << 8));
-    //c->pc = 0xff00;
-
-    c->a = 0;
-    c->x = 0;
-    c->y = 0;
-    c->s = 0xFF;
+    c->s = 0xfd;
     c->flags |= FLAG_CONSTANT | FLAG_BREAK;
 }
 
