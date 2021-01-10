@@ -333,10 +333,8 @@ void asl(context_t * c) {
 
 
 void bra(context_t * c) {
-    uint16_t reladdr = (uint16_t)mem_read(c, c->pc++);
-    if (reladdr & 0x80) reladdr |= 0xFF00;
 	uint16_t oldpc = c->pc;
-	c->pc += reladdr;
+	c->pc = c->ea;
 	if ((oldpc & 0xFF00) != (c->pc & 0xFF00)) c->clockticks += 2; //check if jump crossed a page boundary
 		else c->clockticks++;
 }
