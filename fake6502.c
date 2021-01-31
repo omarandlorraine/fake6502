@@ -319,6 +319,8 @@ void adc(context_t * c) {
 void and(context_t * c) {
     uint8_t m = getvalue(c);
     uint16_t result = (uint16_t)c->a & m;
+
+    zerocalc(c, result);
     signcalc(c, result);
    
     saveaccum(c, result);
