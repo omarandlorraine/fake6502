@@ -866,9 +866,6 @@ void irq6502(context_t * c) {
     }
 }
 
-uint8_t callexternal = 0;
-void (*loopexternal)();
-
 void step(context_t * c) {
     uint8_t opcode = mem_read(c, c->pc++);
     c->opcode = opcode;
