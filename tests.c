@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 #define CHECK(var, shouldbe) if(cpu. var != shouldbe) return printf( #var " should've been %04x but was %04x\n", shouldbe, cpu. var);
-#define CHECKMEM(var, shouldbe) if(mem_read(&cpu, var ) != shouldbe) return printf( "memory location " #var " should've been %02x but was %02x\n", shouldbe, mem_read(&cpu, var ));
+#define CHECKMEM(var, shouldbe) if(mem_read(&cpu, var ) != (shouldbe)) return printf( "memory location " #var " should've been %02x but was %02x\n", shouldbe, mem_read(&cpu, var ));
 
 uint8_t mem[65536];
 
@@ -28,6 +28,10 @@ void print_stack() {
 
 int interrupt() {
 	context_t cpu;
+
+	// It doesn't matter what we set cpu.flags to here, but valgrind checks
+	// that each bit is initialised.
+	cpu.flags = 0xff;
 	
 	// Populate the interrupt vectors
 	mem_write(&cpu, 0xfffc, 0x00);
@@ -61,7 +65,7 @@ int interrupt() {
 
 	CHECKMEM(0x01fd, 0x50);
 	CHECKMEM(0x01fc, 0x00);
-	CHECKMEM(0x01fb, (cpu.flags & ~0x04));
+	CHECKMEM(0x01fb, cpu.flags & 0xeb);
 	return 0;
 }
 
