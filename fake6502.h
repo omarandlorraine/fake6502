@@ -1,4 +1,4 @@
-
+#include <stdint.h>
 typedef struct c1 {
     uint8_t a;
     uint8_t x;
