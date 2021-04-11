@@ -34,6 +34,8 @@ int interrupt() {
 	cpu.flags = 0xff;
 	
 	// Populate the interrupt vectors
+	mem_write(&cpu, 0xfffa, 0x00);
+	mem_write(&cpu, 0xfffb, 0x40);
 	mem_write(&cpu, 0xfffc, 0x00);
 	mem_write(&cpu, 0xfffd, 0x50);
 	mem_write(&cpu, 0xfffe, 0x00);
@@ -66,6 +68,18 @@ int interrupt() {
 	CHECKMEM(0x01fd, 0x50);
 	CHECKMEM(0x01fc, 0x00);
 	CHECKMEM(0x01fb, cpu.flags & 0xeb);
+
+	if(!(cpu.flags & 0x04))
+		return printf("the irq did not set the interrupt flag\n");
+
+	// The NMI may fire even when the Interrupt flag is set
+	nmi6502(&cpu);
+	CHECK(s,  0x00f7);
+	CHECK(pc, 0x4000);
+
+	if(!(cpu.flags & 0x04))
+		return printf("the nmi did not set the interrupt flag\n");
+
 	return 0;
 }
 
