@@ -855,10 +855,6 @@ void nmi6502(context_t * c) {
     c->pc = (uint16_t)mem_read(c, 0xFFFA) | ((uint16_t)mem_read(c, 0xFFFB) << 8);
 }
 
-uint16_t getPC(context_t * c) {
-    return c->pc;
-}
-
 void irq6502(context_t * c) {
     if((c->flags & FLAG_INTERRUPT) == 0) {
         push16(c, c->pc);
