@@ -97,11 +97,34 @@ int zp() {
 
 }
 
+int zpx() {
+	context_t cpu;
 
+	cpu.x = 1;
+	cpu.y = 1;
+
+	mem_write(&cpu, 0x200, 0xb5);
+	mem_write(&cpu, 0x201, 0x03);
+	cpu.pc = 0x200;
+	step(&cpu);
+
+	CHECK(pc, 0x0202);
+	CHECK(ea, 0x0004);
+
+	mem_write(&cpu, 0x201, 0xff);
+	cpu.pc = 0x200;
+	step(&cpu);
+
+	CHECK(pc, 0x0202);
+	CHECK(ea, 0x0000);
+
+	return 0;
+}
 
 struct { char * testname; int (*fp)(); } tests[] = { 
 	{"interrupts", &interrupt},
 	{"zero page addressing", &zp},
+	{"indexed zero page addressing", &zpx},
 	{NULL, NULL}
 };
 
