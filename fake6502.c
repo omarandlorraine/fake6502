@@ -193,7 +193,7 @@ void reset6502(context_t * c) {
 	mem_read(c, 0x01fe);
     c->pc = ((uint16_t)mem_read(c, 0xfffc) | ((uint16_t)mem_read(c, 0xfffd) << 8));
     c->s = 0xfd;
-    c->flags |= FLAG_CONSTANT | FLAG_BREAK;
+    c->flags |= FLAG_CONSTANT | FLAG_INTERRUPT;
 }
 
 static void (*addrtable[256])();

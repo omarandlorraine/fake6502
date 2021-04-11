@@ -13,6 +13,9 @@ typedef struct c1 {
 } context_t;
 
 void step(context_t * c);
+void reset6502(context_t * c);
+void irq6502(context_t * c);
+void nmi6502(context_t * c);
 uint8_t mem_read(context_t * c, uint16_t address);
 void mem_write(context_t * c, uint16_t address, uint8_t val);
 

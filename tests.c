@@ -3,7 +3,8 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define CHECK(var, shouldbe) if(cpu. var != shouldbe) return printf( #var " should've been %d but was %d\n", shouldbe, cpu. var);
+#define CHECK(var, shouldbe) if(cpu. var != shouldbe) return printf( #var " should've been %04x but was %04x\n", shouldbe, cpu. var);
+#define CHECKMEM(var, shouldbe) if(mem_read(&cpu, var ) != shouldbe) return printf( "memory location " #var " should've been %02x but was %02x\n", shouldbe, mem_read(&cpu, var ));
 
 uint8_t mem[65536];
 
@@ -13,6 +14,55 @@ uint8_t mem_read(context_t * c, uint16_t addr) {
 
 void mem_write(context_t * c, uint16_t addr, uint8_t val) {
 	mem[addr] = val;
+}
+
+void print_address(uint16_t addr) {
+	printf("    %04x: %02x\n", addr, mem_read((context_t *)NULL, addr));
+}
+
+void print_stack() {
+	for(int i = 0xff; i; i--) {
+		print_address(0x0100 + i);
+	}
+}
+
+int interrupt() {
+	context_t cpu;
+	
+	// Populate the interrupt vectors
+	mem_write(&cpu, 0xfffc, 0x00);
+	mem_write(&cpu, 0xfffd, 0x50);
+	mem_write(&cpu, 0xfffe, 0x00);
+	mem_write(&cpu, 0xffff, 0x60);
+	
+	// On reset, a 6502 initialises the stack pointer to 0xFD, and jumps to the
+	// address at 0xfffc. Also, the interrupt flag is cleared.
+	cpu.flags &= ~0x04;
+	reset6502(&cpu);
+	CHECK(s,  0x00fd);
+	CHECK(pc, 0x5000);
+
+	if(!(cpu.flags & 0x04))
+		return printf("the reset did not set the interrupt flag\n");
+
+	// This IRQ shouldn't fire because the interrupts are disabled
+	irq6502(&cpu);
+	CHECK(s,  0x00fd);
+	CHECK(pc, 0x5000);
+
+	// Enable interrupts and try again
+	cpu.flags &= ~0x04;
+	irq6502(&cpu);
+
+	// On IRQ, a 6502 pushes the PC and flags onto the stack and then fetches PC
+	// from the vector at 0xFFFE
+	CHECK(s,  0x00fa);
+	CHECK(pc, 0x6000);
+
+	CHECKMEM(0x01fd, 0x50);
+	CHECKMEM(0x01fc, 0x00);
+	CHECKMEM(0x01fb, (cpu.flags & ~0x04));
+	return 0;
 }
 
 int zp() {
@@ -32,6 +82,7 @@ int zp() {
 
 
 struct { char * testname; int (*fp)(); } tests[] = { 
+	{"interrupts", &interrupt},
 	{"zero page addressing", &zp},
 	{NULL, NULL}
 };
