@@ -21,6 +21,9 @@ test: tests
 	./tests
 	gcov fake6502.c
 
+cppcheck:
+	cppcheck --enable=all fake6502.c tests.c
+
 .PHONY: clean
 clean:
 	rm *.o *.gcov *.gcda *.gcno tests
