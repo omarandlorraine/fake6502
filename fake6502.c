@@ -273,8 +273,10 @@ static void indy(context_t * c) { // (indirect),Y
 }
 
 static uint16_t getvalue(context_t * c) {
-    if (addrtable[c->opcode] == acc) return ((uint16_t)c->a);
-        else return ((uint16_t)mem_read(c, c->ea));
+    if (addrtable[c->opcode] == acc)
+		return ((uint16_t)c->a);
+	else
+		return ((uint16_t)mem_read(c, c->ea));
 }
 
 static uint16_t getvalue16(context_t * c) {
@@ -282,8 +284,10 @@ static uint16_t getvalue16(context_t * c) {
 }
 
 static void putvalue(context_t * c, uint16_t saveval) {
-    if (addrtable[c->opcode] == acc) c->a = (uint8_t)(saveval & 0x00FF);
-        else mem_write(c, c->ea, (saveval & 0x00FF));
+    if (addrtable[c->opcode] == acc)
+		c->a = (uint8_t)(saveval & 0x00FF);
+    else
+		mem_write(c, c->ea, (saveval & 0x00FF));
 }
 
 
