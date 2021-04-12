@@ -16,6 +16,8 @@ tests: fake6502.c tests.c
 	gcc $(GCOV) $(CFLAGS) tests.c -c -o tests.o
 	gcc $(GCOV) -DNMOS6502 -c $(CFLAGS) fake6502.c -o fake6502.o
 	gcc -lgcov --coverage tests.o fake6502.o -o tests
+
+test: tests
 	./tests
 	gcov fake6502.c
 
