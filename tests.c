@@ -103,6 +103,7 @@ int zpx() {
 	cpu.x = 1;
 	cpu.y = 1;
 
+	// lda $03,x
 	mem_write(&cpu, 0x200, 0xb5);
 	mem_write(&cpu, 0x201, 0x03);
 	cpu.pc = 0x200;
@@ -111,12 +112,33 @@ int zpx() {
 	CHECK(pc, 0x0202);
 	CHECK(ea, 0x0004);
 
+	// lda $ff,x
 	mem_write(&cpu, 0x201, 0xff);
 	cpu.pc = 0x200;
 	step(&cpu);
 
 	CHECK(pc, 0x0202);
 	CHECK(ea, 0x0000);
+
+	// ldx $03,y
+	mem_write(&cpu, 0x200, 0xb6);
+	mem_write(&cpu, 0x201, 0x03);
+	cpu.pc = 0x200;
+	step(&cpu);
+
+	CHECK(pc, 0x0202);
+	CHECK(ea, 0x0004);
+
+
+	// ldx $ff,y
+	mem_write(&cpu, 0x200, 0xb6);
+	mem_write(&cpu, 0x201, 0xff);
+	cpu.pc = 0x200;
+	step(&cpu);
+
+	CHECK(pc, 0x0202);
+	CHECK(ea, 0x0000);
+
 
 	return 0;
 }
