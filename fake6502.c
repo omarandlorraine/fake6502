@@ -619,6 +619,7 @@ void ror(context_t * c) {
     zerocalc(c, result);
     signcalc(c, result);
    
+    putvalue(c, value);
     putvalue(c, result);
 }
 
