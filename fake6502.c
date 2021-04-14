@@ -160,25 +160,23 @@
 
 
 //a few general functions used by various other functions
-void push16(context_t * c, uint16_t pushval) {
-    mem_write(c, BASE_STACK + c->s, (pushval >> 8) & 0xFF);
-    mem_write(c, BASE_STACK + ((c->s - 1) & 0xFF), pushval & 0xFF);
-    c->s -= 2;
-}
-
 void push8(context_t * c, uint8_t pushval) {
     mem_write(c, BASE_STACK + c->s--, pushval);
 }
 
-uint16_t pull16(context_t * c) {
-    uint16_t temp16;
-    temp16 = mem_read(c, BASE_STACK + ((c->s + 1) & 0xFF)) | ((uint16_t) mem_read(c, BASE_STACK + ((c->s + 2) & 0xFF)) << 8);
-    c->s += 2;
-    return(temp16);
+void push16(context_t * c, uint16_t pushval) {
+    push8(c, (pushval >> 8) & 0xFF);
+    push8(c, pushval & 0xFF);
 }
 
 uint8_t pull8(context_t * c) {
     return (mem_read(c, BASE_STACK + ++c->s));
+}
+
+uint16_t pull16(context_t * c) {
+    uint8_t t;
+    t = pull8(c);
+	return pull8(c) << 8 | t;
 }
 
 void reset6502(context_t * c) {
