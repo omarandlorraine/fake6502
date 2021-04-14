@@ -8,11 +8,15 @@
 
 uint8_t mem[65536];
 
+int reads, writes;
+
 uint8_t mem_read(context_t * c, uint16_t addr) {
+	reads++;
 	return mem[addr];
 }
 
 void mem_write(context_t * c, uint16_t addr, uint8_t val) {
+	writes++;
 	mem[addr] = val;
 }
 
@@ -143,10 +147,44 @@ int zpx() {
 	return 0;
 }
 
+int rra_opcode() {
+	context_t cpu;
+
+	cpu.a = 0x3;
+	cpu.flags &= 0xfe; // Turn off the carry flag
+	mem_write(&cpu, 0x01, 0x02);
+
+	mem_write(&cpu, 0x200, 0x67);
+	mem_write(&cpu, 0x201, 0x01);
+	cpu.pc = 0x200;
+	reads = 0;
+	writes = 0;
+	step(&cpu);
+
+	if(reads != 3)
+		return printf("rra zero-page did %d reads instead of 3\n", reads);
+	if(writes != 2)
+		return printf("rra zero-page did %d writes instead of 2\n", writes);
+	if(mem_read(&cpu, 0x01) != 0x01)
+		return printf("the memory location didn't get rotated");
+
+	CHECK(pc, 0x0202);
+	CHECK(ea, 0x0001);
+	CHECK(a,  0x04);
+	return 0;
+}
+
+/*
+   See this document:
+   http://www.zimmers.net/anonftp/pub/cbm/documents/chipdata/6502-NMOS.extra.opcodes
+   for information about how illegal opcodes work
+*/
+
 struct { char * testname; int (*fp)(); } tests[] = { 
 	{"interrupts", &interrupt},
 	{"zero page addressing", &zp},
 	{"indexed zero page addressing", &zpx},
+	{"rra", &rra_opcode},
 	{NULL, NULL}
 };
 

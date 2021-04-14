@@ -764,8 +764,41 @@ void sre(context_t * c) {
 }
 
 void rra(context_t * c) {
-	ror(c);
-	adc(c);
+    uint16_t value = getvalue(c);
+    uint16_t result = (value >> 1) | ((c->flags & FLAG_CARRY) << 7);
+   
+    if (value & 1) setcarry(c);
+        else clearcarry(c);
+    zerocalc(c, result);
+    signcalc(c, result);
+   
+    putvalue(c, value);
+    putvalue(c, result);
+
+    result = (uint16_t)c->a + result + (uint16_t)(c->flags & FLAG_CARRY);
+   
+    carrycalc(c, result);
+    zerocalc(c, result);
+    overflowcalc(c, result, c->a, value);
+    signcalc(c, result);
+    
+    #ifndef NES_CPU
+    if (c->flags & FLAG_DECIMAL) {
+        clearcarry(c);
+        
+        if ((result & 0x0F) > 0x09) {
+            result += 0x06;
+        }
+        if ((result & 0xF0) > 0x90) {
+            result += 0x60;
+            setcarry(c);
+        }
+        
+        c->clockticks++;
+    }
+    #endif
+   
+    saveaccum(c, result);
 }
 
 static void (*addrtable[256])(context_t * c) = {
