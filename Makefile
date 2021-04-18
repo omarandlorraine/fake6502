@@ -26,5 +26,5 @@ cppcheck:
 
 .PHONY: clean
 clean:
-	rm *.o *.gcov *.gcda *.gcno tests
+	rm -f *.o *.gcov *.gcda *.gcno tests
 	
