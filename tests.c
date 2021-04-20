@@ -233,7 +233,7 @@ int rra_opcode() {
     context_t cpu;
 
     cpu.a = 0x3;
-    cpu.flags &= 0xfe; // Turn off the carry flag
+    cpu.flags &= 0xf6; // Turn off the carry flag and decimal mode
     mem_write(&cpu, 0x01, 0x02);
 
     mem_write(&cpu, 0x200, 0x67);
