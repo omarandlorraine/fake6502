@@ -37,6 +37,13 @@ void print_stack() {
     }
 }
 
+void exec_instruction(context_t * cpu, uint8_t opcode, uint8_t op1, uint8_t op2) {
+	mem_write(cpu, cpu->pc,     opcode);
+	mem_write(cpu, cpu->pc + 1, op1);
+	mem_write(cpu, cpu->pc + 2, op2);
+	step(cpu);
+}
+
 int interrupt() {
     context_t cpu;
 
@@ -158,32 +165,22 @@ int decimal_mode() {
     cpu.pc = 0x200;
     cpu.flags = 0x08; // Turn on decimal mode, clear carry flag
 
-    mem_write(&cpu, 0x200, 0x69); // LDA immediate
-    mem_write(&cpu, 0x201, 0x01); // operand, 0x01;
-    mem_write(&cpu, 0x202, 0x69); // LDA immediate
-    mem_write(&cpu, 0x203, 0x10); // operand, 0x10;
-    mem_write(&cpu, 0x204, 0x18); // CLC
-    mem_write(&cpu, 0x205, 0xe9); // SBC immediate
-    mem_write(&cpu, 0x206, 0x01); // operand, 0x01;
-    mem_write(&cpu, 0x207, 0xe9); // SBC immediate
-    mem_write(&cpu, 0x208, 0x10); // operand, 0x10;
-
-    step(&cpu);
+	exec_instruction(&cpu, 0x69, 0x01, 0x00); // ADC #$01
     CHECK(pc, 0x202);
     CHECK(a, 0x90);
 
-    step(&cpu);
+	exec_instruction(&cpu, 0x69, 0x10, 0x00); // ADC #$10
     CHECK(pc, 0x204);
     CHECK(a, 0x00);
 
-    step(&cpu);
+	exec_instruction(&cpu, 0x18, 0x00, 0x00); // CLC
     CHECK(pc, 0x205);
 
-    step(&cpu);
+	exec_instruction(&cpu, 0xe9, 0x01, 0x00); // SBC #$01
     CHECK(pc, 0x207);
     CHECK(a, 0x99);
 
-    step(&cpu);
+	exec_instruction(&cpu, 0xe9, 0x10, 0x00); // SBC #$10
     CHECK(pc, 0x209);
     CHECK(a, 0x88);
 
@@ -197,32 +194,22 @@ int binary_mode() {
     cpu.pc = 0x200;
     cpu.flags = 0x00; // Turn off decimal mode, clear carry flag
 
-    mem_write(&cpu, 0x200, 0x69); // LDA immediate
-    mem_write(&cpu, 0x201, 0x01); // operand, 0x01;
-    mem_write(&cpu, 0x202, 0x69); // LDA immediate
-    mem_write(&cpu, 0x203, 0x14); // operand, 0x10;
-    mem_write(&cpu, 0x204, 0x18); // CLC
-    mem_write(&cpu, 0x205, 0xe9); // SBC immediate
-    mem_write(&cpu, 0x206, 0x01); // operand, 0x01;
-    mem_write(&cpu, 0x207, 0xe9); // SBC immediate
-    mem_write(&cpu, 0x208, 0x10); // operand, 0x10;
-
-    step(&cpu);
+	exec_instruction(&cpu, 0x69, 0x01, 0x00); // ADC #$01
     CHECK(pc, 0x202);
     CHECK(a, 0x8a);
 
-    step(&cpu);
+	exec_instruction(&cpu, 0x69, 0x14, 0x00); // ADC #$10
     CHECK(pc, 0x204);
     CHECK(a, 0x9e);
 
-    step(&cpu);
+	exec_instruction(&cpu, 0x18, 0x00, 0x00); // CLC
     CHECK(pc, 0x205);
 
-    step(&cpu);
+	exec_instruction(&cpu, 0xe9, 0x01, 0x00); // SBC #$01
     CHECK(pc, 0x207);
     CHECK(a, 0x9d);
 
-    step(&cpu);
+	exec_instruction(&cpu, 0xe9, 0x10, 0x00); // SBC #$10
     CHECK(pc, 0x209);
     CHECK(a, 0x8d);
 
