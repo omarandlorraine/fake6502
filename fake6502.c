@@ -101,6 +101,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "fake6502.h"
+#include <stdbool.h>
 
 //6502 defines
 // #define UNDOCUMENTED //when this is defined, undocumented opcodes are handled.
@@ -288,21 +289,18 @@ static void putvalue(context_t * c, uint16_t saveval) {
 		mem_write(c, c->ea, (saveval & 0x00FF));
 }
 
+uint8_t add8(context_t * c, uint16_t a, uint16_t b, bool carry) {
+    uint16_t result = a + b + (uint16_t)(carry ? 1 : 0);
 
-//instruction handler functions
-void adc(context_t * c) {
-    uint16_t value = getvalue(c);
-    uint16_t result = (uint16_t)c->a + value + (uint16_t)(c->flags & FLAG_CARRY);
-   
     carrycalc(c, result);
     zerocalc(c, result);
-    overflowcalc(c, result, c->a, value);
+    overflowcalc(c, result, a, b);
     signcalc(c, result);
-    
+
     #ifndef NES_CPU
     if (c->flags & FLAG_DECIMAL) {
         clearcarry(c);
-        
+
         if ((result & 0x0F) > 0x09) {
             result += 0x06;
         }
@@ -310,12 +308,17 @@ void adc(context_t * c) {
             result += 0x60;
             setcarry(c);
         }
-        
+
         c->clockticks++;
     }
     #endif
-   
-    saveaccum(c, result);
+    return result;
+}
+
+//instruction handler functions
+void adc(context_t * c) {
+    uint16_t value = getvalue(c);
+	saveaccum(c, add8(c, c->a, value, c->flags & FLAG_CARRY));
 }
 
 void and(context_t * c) {
@@ -772,31 +775,7 @@ void rra(context_t * c) {
    
     putvalue(c, value);
     putvalue(c, result);
-
-    result = (uint16_t)c->a + result + (uint16_t)(c->flags & FLAG_CARRY);
-   
-    carrycalc(c, result);
-    zerocalc(c, result);
-    overflowcalc(c, result, c->a, value);
-    signcalc(c, result);
-    
-    #ifndef NES_CPU
-    if (c->flags & FLAG_DECIMAL) {
-        clearcarry(c);
-        
-        if ((result & 0x0F) > 0x09) {
-            result += 0x06;
-        }
-        if ((result & 0xF0) > 0x90) {
-            result += 0x60;
-            setcarry(c);
-        }
-        
-        c->clockticks++;
-    }
-    #endif
-   
-    saveaccum(c, result);
+	saveaccum(c, add8(c, c->a, result, c->flags & FLAG_CARRY));
 }
 
 static void (*addrtable[256])(context_t * c) = {
