@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-#define CHECK(var, shouldbe) if(cpu. var != shouldbe) return printf( #var " should've been %04x but was %04x\n", shouldbe, cpu. var);
+#define CHECK(var, shouldbe) if(cpu. var != shouldbe) return printf("line %d: " #var " should've been %04x but was %04x\n", __LINE__, shouldbe, cpu. var);
 #define CHECKMEM(var, shouldbe) if(mem_read(&cpu, var ) != (shouldbe)) return printf( "memory location " #var " should've been %02x but was %02x\n", shouldbe, mem_read(&cpu, var ));
 
 uint8_t mem[65536];
@@ -186,6 +186,45 @@ int decimal_mode() {
 	return 0;
 }
 
+int binary_mode() {
+	context_t cpu;
+
+	cpu.a = 0x89;
+	cpu.pc = 0x200;
+	cpu.flags = 0x00; // Turn off decimal mode, clear carry flag
+
+	mem_write(&cpu, 0x200, 0x69); // LDA immediate
+	mem_write(&cpu, 0x201, 0x01); // operand, 0x01;
+	mem_write(&cpu, 0x202, 0x69); // LDA immediate
+	mem_write(&cpu, 0x203, 0x14); // operand, 0x10;
+	mem_write(&cpu, 0x204, 0x18); // CLC
+	mem_write(&cpu, 0x205, 0xe9); // SBC immediate
+	mem_write(&cpu, 0x206, 0x01); // operand, 0x01;
+	mem_write(&cpu, 0x207, 0xe9); // SBC immediate
+	mem_write(&cpu, 0x208, 0x10); // operand, 0x10;
+
+	step(&cpu);
+	CHECK(pc, 0x202);
+	CHECK(a,  0x8a);
+
+	step(&cpu);
+	CHECK(pc, 0x204);
+	CHECK(a,  0x9e);
+	
+	step(&cpu);
+	CHECK(pc, 0x205);
+	
+	step(&cpu);
+	CHECK(pc, 0x207);
+	CHECK(a,  0x9d);
+	
+	step(&cpu);
+	CHECK(pc, 0x209);
+	CHECK(a,  0x8d);
+	
+	return 0;
+}
+
 int rra_opcode() {
 	context_t cpu;
 
@@ -224,6 +263,7 @@ struct { char * testname; int (*fp)(); } tests[] = {
 	{"zero page addressing", &zp},
 	{"indexed zero page addressing", &zpx},
 	{"decimal mode", decimal_mode},
+	{"binary mode", binary_mode},
 	{"rra", &rra_opcode},
 	{NULL, NULL}
 };
