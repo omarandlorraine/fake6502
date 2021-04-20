@@ -631,8 +631,8 @@ void rts(context_t * c) {
 }
 
 void sbc(context_t * c) {
-    uint16_t value = getvalue(c) ^ 0x00FF;
-    uint16_t result = (uint16_t)c->a + value + (uint16_t)(c->flags & FLAG_CARRY);
+    uint16_t value = getvalue(c);
+    uint16_t result = (uint16_t)c->a - value - ((c->flags & FLAG_CARRY) ? 1 : 0);
    
     carrycalc(c, result);
     zerocalc(c, result);
@@ -643,12 +643,11 @@ void sbc(context_t * c) {
     if (c->flags & FLAG_DECIMAL) {
         clearcarry(c);
         
-        c->a -= 0x66;
-        if ((c->a & 0x0F) > 0x09) {
-            c->a += 0x06;
+        if ((result & 0x0F) > 0x09) {
+            result -= 0x06;
         }
-        if ((c->a & 0xF0) > 0x90) {
-            c->a += 0x60;
+        if ((result & 0xF0) > 0x90) {
+            result -= 0x60;
             setcarry(c);
         }
         

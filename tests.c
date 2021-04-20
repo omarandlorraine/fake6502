@@ -147,6 +147,45 @@ int zpx() {
 	return 0;
 }
 
+int decimal_mode() {
+	context_t cpu;
+
+	cpu.a = 0x89;
+	cpu.pc = 0x200;
+	cpu.flags = 0x08; // Turn on decimal mode, clear carry flag
+
+	mem_write(&cpu, 0x200, 0x69); // LDA immediate
+	mem_write(&cpu, 0x201, 0x01); // operand, 0x01;
+	mem_write(&cpu, 0x202, 0x69); // LDA immediate
+	mem_write(&cpu, 0x203, 0x10); // operand, 0x10;
+	mem_write(&cpu, 0x204, 0x18); // CLC
+	mem_write(&cpu, 0x205, 0xe9); // SBC immediate
+	mem_write(&cpu, 0x206, 0x01); // operand, 0x01;
+	mem_write(&cpu, 0x207, 0xe9); // SBC immediate
+	mem_write(&cpu, 0x208, 0x10); // operand, 0x10;
+
+	step(&cpu);
+	CHECK(pc, 0x202);
+	CHECK(a,  0x90);
+
+	step(&cpu);
+	CHECK(pc, 0x204);
+	CHECK(a,  0x00);
+	
+	step(&cpu);
+	CHECK(pc, 0x205);
+	
+	step(&cpu);
+	CHECK(pc, 0x207);
+	CHECK(a,  0x99);
+	
+	step(&cpu);
+	CHECK(pc, 0x209);
+	CHECK(a,  0x88);
+	
+	return 0;
+}
+
 int rra_opcode() {
 	context_t cpu;
 
@@ -184,6 +223,7 @@ struct { char * testname; int (*fp)(); } tests[] = {
 	{"interrupts", &interrupt},
 	{"zero page addressing", &zp},
 	{"indexed zero page addressing", &zpx},
+	{"decimal mode", decimal_mode},
 	{"rra", &rra_opcode},
 	{NULL, NULL}
 };
