@@ -23,7 +23,7 @@ $(OUTDIR)/tests: fake6502.c tests.c $(OUTDIR)
 
 .PHONY: test
 test: $(OUTDIR)/tests
-	./$(OUTDIR)/tests
+	valgrind -q ./$(OUTDIR)/tests
 
 lcov: $(OUTDIR)
 	lcov --zerocounters -d $(OUTDIR)/
