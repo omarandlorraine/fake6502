@@ -37,6 +37,10 @@ lcov: $(OUTDIR)
 cppcheck:
 	cppcheck --enable=all fake6502.c tests.c
 
+.PHONY: format
+format:
+	clang-format -style="{BasedOnStyle: llvm, IndentWidth: 4}" -i *.c
+
 .PHONY: clean
 clean:
 	rm -rf build/
