@@ -24,7 +24,6 @@ $(OUTDIR)/tests: fake6502.c tests.c $(OUTDIR)
 .PHONY: test
 test: $(OUTDIR)/tests
 	./$(OUTDIR)/tests
-	gcov fake6502.c
 
 lcov: $(OUTDIR)
 	lcov --zerocounters -d $(OUTDIR)/
