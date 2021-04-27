@@ -37,11 +37,12 @@ void print_stack() {
     }
 }
 
-void exec_instruction(context_t * cpu, uint8_t opcode, uint8_t op1, uint8_t op2) {
-	mem_write(cpu, cpu->pc,     opcode);
-	mem_write(cpu, cpu->pc + 1, op1);
-	mem_write(cpu, cpu->pc + 2, op2);
-	step(cpu);
+void exec_instruction(context_t *cpu, uint8_t opcode, uint8_t op1,
+                      uint8_t op2) {
+    mem_write(cpu, cpu->pc, opcode);
+    mem_write(cpu, cpu->pc + 1, op1);
+    mem_write(cpu, cpu->pc + 2, op2);
+    step(cpu);
 }
 
 int interrupt() {
@@ -105,7 +106,7 @@ int zp() {
     context_t cpu;
 
     cpu.pc = 0x200;
-	exec_instruction(&cpu, 0xa5, 0x03, 0x00);
+    exec_instruction(&cpu, 0xa5, 0x03, 0x00);
 
     CHECK(pc, 0x0202);
     CHECK(ea, 0x0003);
@@ -117,17 +118,17 @@ int zpx() {
 
     cpu.x = 1;
     cpu.y = 1;
-	cpu.pc = 0x200;
+    cpu.pc = 0x200;
 
-	exec_instruction(&cpu, 0xb5, 0x03, 0x00); // lda $03,x
+    exec_instruction(&cpu, 0xb5, 0x03, 0x00); // lda $03,x
     CHECK(pc, 0x0202);
     CHECK(ea, 0x0004);
 
-	exec_instruction(&cpu, 0xb5, 0xff, 0x00); // lda $ff,x
+    exec_instruction(&cpu, 0xb5, 0xff, 0x00); // lda $ff,x
     CHECK(pc, 0x0204);
     CHECK(ea, 0x0000);
 
-	exec_instruction(&cpu, 0xb6, 0x03, 0x00); // lda $03,x
+    exec_instruction(&cpu, 0xb6, 0x03, 0x00); // lda $03,x
     CHECK(pc, 0x0206);
     CHECK(ea, 0x0004);
 
@@ -145,22 +146,22 @@ int decimal_mode() {
     cpu.pc = 0x200;
     cpu.flags = 0x08; // Turn on decimal mode, clear carry flag
 
-	exec_instruction(&cpu, 0x69, 0x01, 0x00); // ADC #$01
+    exec_instruction(&cpu, 0x69, 0x01, 0x00); // ADC #$01
     CHECK(pc, 0x202);
     CHECK(a, 0x90);
 
-	exec_instruction(&cpu, 0x69, 0x10, 0x00); // ADC #$10
+    exec_instruction(&cpu, 0x69, 0x10, 0x00); // ADC #$10
     CHECK(pc, 0x204);
     CHECK(a, 0x00);
 
-	exec_instruction(&cpu, 0x18, 0x00, 0x00); // CLC
+    exec_instruction(&cpu, 0x18, 0x00, 0x00); // CLC
     CHECK(pc, 0x205);
 
-	exec_instruction(&cpu, 0xe9, 0x01, 0x00); // SBC #$01
+    exec_instruction(&cpu, 0xe9, 0x01, 0x00); // SBC #$01
     CHECK(pc, 0x207);
     CHECK(a, 0x99);
 
-	exec_instruction(&cpu, 0xe9, 0x10, 0x00); // SBC #$10
+    exec_instruction(&cpu, 0xe9, 0x10, 0x00); // SBC #$10
     CHECK(pc, 0x209);
     CHECK(a, 0x88);
 
@@ -174,22 +175,22 @@ int binary_mode() {
     cpu.pc = 0x200;
     cpu.flags = 0x00; // Turn off decimal mode, clear carry flag
 
-	exec_instruction(&cpu, 0x69, 0x01, 0x00); // ADC #$01
+    exec_instruction(&cpu, 0x69, 0x01, 0x00); // ADC #$01
     CHECK(pc, 0x202);
     CHECK(a, 0x8a);
 
-	exec_instruction(&cpu, 0x69, 0x14, 0x00); // ADC #$10
+    exec_instruction(&cpu, 0x69, 0x14, 0x00); // ADC #$10
     CHECK(pc, 0x204);
     CHECK(a, 0x9e);
 
-	exec_instruction(&cpu, 0x18, 0x00, 0x00); // CLC
+    exec_instruction(&cpu, 0x18, 0x00, 0x00); // CLC
     CHECK(pc, 0x205);
 
-	exec_instruction(&cpu, 0xe9, 0x01, 0x00); // SBC #$01
+    exec_instruction(&cpu, 0xe9, 0x01, 0x00); // SBC #$01
     CHECK(pc, 0x207);
     CHECK(a, 0x9d);
 
-	exec_instruction(&cpu, 0xe9, 0x10, 0x00); // SBC #$10
+    exec_instruction(&cpu, 0xe9, 0x10, 0x00); // SBC #$10
     CHECK(pc, 0x209);
     CHECK(a, 0x8d);
 
