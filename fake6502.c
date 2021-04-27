@@ -342,6 +342,19 @@ uint8_t add8(context_t *c, uint16_t a, uint16_t b, bool carry) {
     return result;
 }
 
+uint8_t ror8(context_t *c, uint16_t value) {
+    uint16_t result = (value >> 1) | ((c->flags & FLAG_CARRY) << 7);
+
+    if (value & 1)
+        setcarry(c);
+    else
+        clearcarry(c);
+    zerocalc(c, result);
+    signcalc(c, result);
+
+    return result;
+}
+
 // instruction handler functions
 void adc(context_t *c) {
     uint16_t value = getvalue(c);
@@ -605,17 +618,9 @@ void rol(context_t *c) {
 
 void ror(context_t *c) {
     uint16_t value = getvalue(c);
-    uint16_t result = (value >> 1) | ((c->flags & FLAG_CARRY) << 7);
-
-    if (value & 1)
-        setcarry(c);
-    else
-        clearcarry(c);
-    zerocalc(c, result);
-    signcalc(c, result);
 
     putvalue(c, value);
-    putvalue(c, result);
+    putvalue(c, ror8(c, value));
 }
 
 void rti(context_t *c) {
@@ -743,15 +748,7 @@ void sre(context_t *c) {
 
 void rra(context_t *c) {
     uint16_t value = getvalue(c);
-    uint16_t result = (value >> 1) | ((c->flags & FLAG_CARRY) << 7);
-
-    if (value & 1)
-        setcarry(c);
-    else
-        clearcarry(c);
-    zerocalc(c, result);
-    signcalc(c, result);
-
+	uint16_t result = ror8(c, value);
     putvalue(c, value);
     putvalue(c, result);
     saveaccum(c, add8(c, c->a, result, c->flags & FLAG_CARRY));
