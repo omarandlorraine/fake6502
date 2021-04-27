@@ -104,10 +104,8 @@ int interrupt() {
 int zp() {
     context_t cpu;
 
-    mem_write(&cpu, 0x200, 0xa5);
-    mem_write(&cpu, 0x201, 0x03);
     cpu.pc = 0x200;
-    step(&cpu);
+	exec_instruction(&cpu, 0xa5, 0x03, 0x00);
 
     CHECK(pc, 0x0202);
     CHECK(ea, 0x0003);
@@ -119,40 +117,22 @@ int zpx() {
 
     cpu.x = 1;
     cpu.y = 1;
+	cpu.pc = 0x200;
 
-    // lda $03,x
-    mem_write(&cpu, 0x200, 0xb5);
-    mem_write(&cpu, 0x201, 0x03);
-    cpu.pc = 0x200;
-    step(&cpu);
-
+	exec_instruction(&cpu, 0xb5, 0x03, 0x00); // lda $03,x
     CHECK(pc, 0x0202);
     CHECK(ea, 0x0004);
 
-    // lda $ff,x
-    mem_write(&cpu, 0x201, 0xff);
-    cpu.pc = 0x200;
-    step(&cpu);
-
-    CHECK(pc, 0x0202);
+	exec_instruction(&cpu, 0xb5, 0xff, 0x00); // lda $ff,x
+    CHECK(pc, 0x0204);
     CHECK(ea, 0x0000);
 
-    // ldx $03,y
-    mem_write(&cpu, 0x200, 0xb6);
-    mem_write(&cpu, 0x201, 0x03);
-    cpu.pc = 0x200;
-    step(&cpu);
-
-    CHECK(pc, 0x0202);
+	exec_instruction(&cpu, 0xb6, 0x03, 0x00); // lda $03,x
+    CHECK(pc, 0x0206);
     CHECK(ea, 0x0004);
 
-    // ldx $ff,y
-    mem_write(&cpu, 0x200, 0xb6);
-    mem_write(&cpu, 0x201, 0xff);
-    cpu.pc = 0x200;
-    step(&cpu);
-
-    CHECK(pc, 0x0202);
+    exec_instruction(&cpu, 0xb6, 0xff, 0x00); // ldx $ff,y
+    CHECK(pc, 0x0208);
     CHECK(ea, 0x0000);
 
     return 0;
