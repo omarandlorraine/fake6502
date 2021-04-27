@@ -10,7 +10,7 @@ $(OUTDIR):
 	mkdir -p $(OUTDIR)
 
 $(OUTDIR)/fake6502.o: $(OUTDIR) fake6502.c
-	$(CC) -DNMOS6502 -c $(CFLAGS) fake6502.c -o $@
+	$(CC) -DNMOS6502 -DNMOS6502 -c $(CFLAGS) fake6502.c -o $@
 $(OUTDIR)/fake65c02.o: fake6502.c
 	$(CC) -DCMOS6502 -c $(CFLAGS) fake6502.c -o $@
 $(OUTDIR)/fake2a03.o: fake6502.c
