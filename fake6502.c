@@ -748,144 +748,291 @@ void sre(context_t *c) {
 
 void rra(context_t *c) {
     uint16_t value = getvalue(c);
-	uint16_t result = ror8(c, value);
+    uint16_t result = ror8(c, value);
     putvalue(c, value);
     putvalue(c, result);
     saveaccum(c, add8(c, c->a, result, c->flags & FLAG_CARRY));
 }
 
-static void (*addrtable[256])(context_t *c) = {
-    /*        |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  A
-       |  B  |  C  |  D  |  E  |  F  |     */
-    /* 0 */ imp,  indx, imp, indx, zp,   zp,   zp,   zp,
-    imp,          imm,  acc, imm,  abso, abso, abso, abso, /* 0 */
-    /* 1 */ rel,  indy, imp, indy, zpx,  zpx,  zpx,  zpx,
-    imp,          absy, imp, absy, absx, absx, absx, absx, /* 1 */
-    /* 2 */ abso, indx, imp, indx, zp,   zp,   zp,   zp,
-    imp,          imm,  acc, imm,  abso, abso, abso, abso, /* 2 */
-    /* 3 */ rel,  indy, imp, indy, zpx,  zpx,  zpx,  zpx,
-    imp,          absy, imp, absy, absx, absx, absx, absx, /* 3 */
-    /* 4 */ imp,  indx, imp, indx, zp,   zp,   zp,   zp,
-    imp,          imm,  acc, imm,  abso, abso, abso, abso, /* 4 */
-    /* 5 */ rel,  indy, imp, indy, zpx,  zpx,  zpx,  zpx,
-    imp,          absy, imp, absy, absx, absx, absx, absx, /* 5 */
-    /* 6 */ imp,  indx, imp, indx, zp,   zp,   zp,   zp,
-    imp,          imm,  acc, imm,  ind,  abso, abso, abso, /* 6 */
-    /* 7 */ rel,  indy, imp, indy, zpx,  zpx,  zpx,  zpx,
-    imp,          absy, imp, absy, absx, absx, absx, absx, /* 7 */
-    /* 8 */ imm,  indx, imm, indx, zp,   zp,   zp,   zp,
-    imp,          imm,  imp, imm,  abso, abso, abso, abso, /* 8 */
-    /* 9 */ rel,  indy, imp, indy, zpx,  zpx,  zpy,  zpy,
-    imp,          absy, imp, absy, absx, absx, absy, absy, /* 9 */
-    /* A */ imm,  indx, imm, indx, zp,   zp,   zp,   zp,
-    imp,          imm,  imp, imm,  abso, abso, abso, abso, /* A */
-    /* B */ rel,  indy, imp, indy, zpx,  zpx,  zpy,  zpy,
-    imp,          absy, imp, absy, absx, absx, absy, absy, /* B */
-    /* C */ imm,  indx, imm, indx, zp,   zp,   zp,   zp,
-    imp,          imm,  imp, imm,  abso, abso, abso, abso, /* C */
-    /* D */ rel,  indy, imp, indy, zpx,  zpx,  zpx,  zpx,
-    imp,          absy, imp, absy, absx, absx, absx, absx, /* D */
-    /* E */ imm,  indx, imm, indx, zp,   zp,   zp,   zp,
-    imp,          imm,  imp, imm,  abso, abso, abso, abso, /* E */
-    /* F */ rel,  indy, imp, indy, zpx,  zpx,  zpx,  zpx,
-    imp,          absy, imp, absy, absx, absx, absx, absx /* F */
-};
+typedef struct {
+    void (*addr_mode)(context_t *c);
+    void (*opcode)(context_t *c);
+    int clockticks;
+} opcode_t;
 
-#ifdef NMOS6502
-void (*optable[256])(context_t *c) = {
-    /*        |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  A
-       |  B  |  C  |  D  |  E  |  F  |      */
-    /* 0 */ brk, ora, nop, slo, nop, ora, asl, slo,
-    php,         ora, asl, nop, nop, ora, asl, slo, /* 0 */
-    /* 1 */ bpl, ora, nop, slo, nop, ora, asl, slo,
-    clc,         ora, nop, slo, nop, ora, asl, slo, /* 1 */
-    /* 2 */ jsr, and, nop, rla, bit, and, rol, rla,
-    plp,         and, rol, nop, bit, and, rol, rla, /* 2 */
-    /* 3 */ bmi, and, nop, rla, nop, and, rol, rla,
-    sec,         and, nop, rla, nop, and, rol, rla, /* 3 */
-    /* 4 */ rti, eor, nop, sre, nop, eor, lsr, sre,
-    pha,         eor, lsr, nop, jmp, eor, lsr, sre, /* 4 */
-    /* 5 */ bvc, eor, nop, sre, nop, eor, lsr, sre,
-    cli,         eor, nop, sre, nop, eor, lsr, sre, /* 5 */
-    /* 6 */ rts, adc, nop, rra, nop, adc, ror, rra,
-    pla,         adc, ror, nop, jmp, adc, ror, rra, /* 6 */
-    /* 7 */ bvs, adc, nop, rra, nop, adc, ror, rra,
-    sei,         adc, nop, rra, nop, adc, ror, rra, /* 7 */
-    /* 8 */ nop, sta, nop, sax, sty, sta, stx, sax,
-    dey,         nop, txa, nop, sty, sta, stx, sax, /* 8 */
-    /* 9 */ bcc, sta, nop, nop, sty, sta, stx, sax,
-    tya,         sta, txs, nop, nop, sta, nop, nop, /* 9 */
-    /* A */ ldy, lda, ldx, lax, ldy, lda, ldx, lax,
-    tay,         lda, tax, nop, ldy, lda, ldx, lax, /* A */
-    /* B */ bcs, lda, nop, lax, ldy, lda, ldx, lax,
-    clv,         lda, tsx, lax, ldy, lda, ldx, lax, /* B */
-    /* C */ cpy, cmp, nop, dcp, cpy, cmp, dec, dcp,
-    iny,         cmp, dex, nop, cpy, cmp, dec, dcp, /* C */
-    /* D */ bne, cmp, nop, dcp, nop, cmp, dec, dcp,
-    cld,         cmp, nop, dcp, nop, cmp, dec, dcp, /* D */
-    /* E */ cpx, sbc, nop, isb, cpx, sbc, inc, isb,
-    inx,         sbc, nop, sbc, cpx, sbc, inc, isb, /* E */
-    /* F */ beq, sbc, nop, isb, nop, sbc, inc, isb,
-    sed,         sbc, nop, isb, nop, sbc, inc, isb /* F */
-};
-#endif // NMOS6502
-
-#ifdef CMOS6502
-void (*optable[256])(context_t *c) = {
-    /* 0 */ brk, ora, 0,   0, 0,   ora, asl, 0,
-    php,         ora, asl, 0, 0,   ora, asl, 0,
-    /* 1 */ bpl, ora, ora, 0, 0,   ora, asl, 0,
-    clc,         ora, inc, 0, 0,   ora, asl, 0,
-    /* 2 */ jsr, and, 0,   0, bit, and, rol, 0,
-    plp,         and, rol, 0, bit, and, rol, 0,
-    /* 3 */ bmi, and, and, 0, bit, and, rol, 0,
-    sec,         and, dec, 0, bit, and, rol, 0,
-    /* 4 */ rti, eor, 0,   0, 0,   eor, lsr, 0,
-    pha,         eor, lsr, 0, jmp, eor, lsr, 0,
-    /* 5 */ bvc, eor, eor, 0, 0,   eor, lsr, 0,
-    cli,         eor, phy, 0, 0,   eor, lsr, 0,
-    /* 6 */ rts, adc, 0,   0, stz, adc, ror, 0,
-    pla,         adc, ror, 0, jmp, adc, ror, 0,
-    /* 7 */ bvs, adc, adc, 0, stz, adc, ror, 0,
-    sei,         adc, ply, 0, jmp, adc, ror, 0,
-    /* 8 */ bra, sta, 0,   0, sty, sta, stx, 0,
-    dey,         bit, txa, 0, sty, sta, stx, 0,
-    /* 9 */ bcc, sta, sta, 0, sty, sta, stx, 0,
-    tya,         sta, txs, 0, stz, sta, stz, 0,
-    /* A */ ldy, lda, ldx, 0, ldy, lda, ldx, 0,
-    tay,         lda, tax, 0, ldy, lda, ldx, 0,
-    /* B */ bcs, lda, lda, 0, ldy, lda, ldx, 0,
-    clv,         lda, tsx, 0, ldy, lda, ldx, 0,
-    /* C */ cpy, cmp, 0,   0, cpy, cmp, dec, 0,
-    iny,         cmp, dex, 0, cpy, cmp, dec, 0,
-    /* D */ bne, cmp, cmp, 0, 0,   cmp, dec, 0,
-    cld,         cmp, phx, 0, 0,   cmp, dec, 0,
-    /* E */ cpx, sbc, 0,   0, cpx, sbc, inc, 0,
-    inx,         sbc, nop, 0, cpx, sbc, inc, 0,
-    /* F */ beq, sbc, sbc, 0, 0,   sbc, inc, 0,
-    sed,         sbc, plx, 0, 0,   sbc, inc, 0};
-#endif // CMOS6502
-
-static const uint8_t ticktable[256] = {
-    /*        |  0  |  1  |  2  |  3  |  4  |  5  |  6  |  7  |  8  |  9  |  A
-       |  B  |  C  |  D  |  E  |  F  |     */
-    /* 0 */ 7, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 4, 4, 6, 6, /* 0 */
-    /* 1 */ 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, /* 1 */
-    /* 2 */ 6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 4, 4, 6, 6, /* 2 */
-    /* 3 */ 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, /* 3 */
-    /* 4 */ 6, 6, 2, 8, 3, 3, 5, 5, 3, 2, 2, 2, 3, 4, 6, 6, /* 4 */
-    /* 5 */ 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, /* 5 */
-    /* 6 */ 6, 6, 2, 8, 3, 3, 5, 5, 4, 2, 2, 2, 5, 4, 6, 6, /* 6 */
-    /* 7 */ 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, /* 7 */
-    /* 8 */ 2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, /* 8 */
-    /* 9 */ 2, 6, 2, 6, 4, 4, 4, 4, 2, 5, 2, 5, 5, 5, 5, 5, /* 9 */
-    /* A */ 2, 6, 2, 6, 3, 3, 3, 3, 2, 2, 2, 2, 4, 4, 4, 4, /* A */
-    /* B */ 2, 5, 2, 5, 4, 4, 4, 4, 2, 4, 2, 4, 4, 4, 4, 4, /* B */
-    /* C */ 2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, /* C */
-    /* D */ 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7, /* D */
-    /* E */ 2, 6, 2, 8, 3, 3, 5, 5, 2, 2, 2, 2, 4, 4, 6, 6, /* E */
-    /* F */ 2, 5, 2, 8, 4, 4, 6, 6, 2, 4, 2, 7, 4, 4, 7, 7  /* F */
-};
+static opcode_t opcodes[256] = {
+    /* 00 */
+    {imp, brk, 7},
+    {indx, ora, 6},
+    {imp, nop, 2},
+    {indx, slo, 8},
+    {zp, nop, 3},
+    {zp, ora, 3},
+    {zp, asl, 5},
+    {zp, slo, 5},
+    {imp, php, 3},
+    {imm, ora, 2},
+    {acc, asl, 2},
+    {imm, nop, 2},
+    {abso, nop, 4},
+    {abso, ora, 4},
+    {abso, asl, 6},
+    {abso, slo, 6},
+    /* 01 */
+    {rel, bpl, 2},
+    {indy, ora, 5},
+    {imp, nop, 2},
+    {indy, slo, 8},
+    {zpx, nop, 4},
+    {zpx, ora, 4},
+    {zpx, asl, 6},
+    {zpx, slo, 6},
+    {imp, clc, 2},
+    {absy, ora, 4},
+    {imp, nop, 2},
+    {absy, slo, 7},
+    {absx, nop, 4},
+    {absx, ora, 4},
+    {absx, asl, 7},
+    {absx, slo, 7},
+    /* 02 */
+    {abso, jsr, 6},
+    {indx, and, 6},
+    {imp, nop, 2},
+    {indx, rla, 8},
+    {zp, bit, 3},
+    {zp, and, 3},
+    {zp, rol, 5},
+    {zp, rla, 5},
+    {imp, plp, 4},
+    {imm, and, 2},
+    {acc, rol, 2},
+    {imm, nop, 2},
+    {abso, bit, 4},
+    {abso, and, 4},
+    {abso, rol, 6},
+    {abso, rla, 6},
+    /* 30 */
+    {rel, bmi, 2},
+    {indy, and, 5},
+    {imp, nop, 2},
+    {indy, rla, 8},
+    {zpx, nop, 4},
+    {zpx, and, 4},
+    {zpx, rol, 6},
+    {zpx, rla, 6},
+    {imp, sec, 2},
+    {absy, and, 4},
+    {imp, nop, 2},
+    {absy, rla, 7},
+    {absx, nop, 4},
+    {absx, and, 4},
+    {absx, rol, 7},
+    {absx, rla, 7},
+    /* 40 */
+    {imp, rti, 6},
+    {indx, eor, 6},
+    {imp, nop, 2},
+    {indx, sre, 8},
+    {zp, nop, 3},
+    {zp, eor, 3},
+    {zp, lsr, 5},
+    {zp, sre, 5},
+    {imp, pha, 3},
+    {imm, eor, 2},
+    {acc, lsr, 2},
+    {imm, nop, 2},
+    {abso, jmp, 3},
+    {abso, eor, 4},
+    {abso, lsr, 6},
+    {abso, sre, 6},
+    /* 50 */
+    {rel, bvc, 2},
+    {indy, eor, 5},
+    {imp, nop, 2},
+    {indy, sre, 8},
+    {zpx, nop, 4},
+    {zpx, eor, 4},
+    {zpx, lsr, 6},
+    {zpx, sre, 6},
+    {imp, cli, 2},
+    {absy, eor, 4},
+    {imp, nop, 2},
+    {absy, sre, 7},
+    {absx, nop, 4},
+    {absx, eor, 4},
+    {absx, lsr, 7},
+    {absx, sre, 7},
+    /* 60 */
+    {imp, rts, 6},
+    {indx, adc, 6},
+    {imp, nop, 2},
+    {indx, rra, 8},
+    {zp, nop, 3},
+    {zp, adc, 3},
+    {zp, ror, 5},
+    {zp, rra, 5},
+    {imp, pla, 4},
+    {imm, adc, 2},
+    {acc, ror, 2},
+    {imm, nop, 2},
+    {ind, jmp, 5},
+    {abso, adc, 4},
+    {abso, ror, 6},
+    {abso, rra, 6},
+    /* 70 */
+    {rel, bvs, 2},
+    {indy, adc, 5},
+    {imp, nop, 2},
+    {indy, rra, 8},
+    {zpx, nop, 4},
+    {zpx, adc, 4},
+    {zpx, ror, 6},
+    {zpx, rra, 6},
+    {imp, sei, 2},
+    {absy, adc, 4},
+    {imp, nop, 2},
+    {absy, rra, 7},
+    {absx, nop, 4},
+    {absx, adc, 4},
+    {absx, ror, 7},
+    {absx, rra, 7},
+    /* 80*/
+    {imm, nop, 2},
+    {indx, sta, 6},
+    {imm, nop, 2},
+    {indx, sax, 6},
+    {zp, sty, 3},
+    {zp, sta, 3},
+    {zp, stx, 3},
+    {zp, sax, 3},
+    {imp, dey, 2},
+    {imm, nop, 2},
+    {imp, txa, 2},
+    {imm, nop, 2},
+    {abso, sty, 4},
+    {abso, sta, 4},
+    {abso, stx, 4},
+    {abso, sax, 4},
+    /*90*/
+    {rel, bcc, 2},
+    {indy, sta, 6},
+    {imp, nop, 2},
+    {indy, nop, 6},
+    {zpx, sty, 4},
+    {zpx, sta, 4},
+    {zpy, stx, 4},
+    {zpy, sax, 4},
+    {imp, tya, 2},
+    {absy, sta, 5},
+    {imp, txs, 2},
+    {absy, nop, 5},
+    {absx, nop, 5},
+    {absx, sta, 5},
+    {absy, nop, 5},
+    {absy, nop, 5},
+    /* A0 */
+    {imm, ldy, 2},
+    {indx, lda, 6},
+    {imm, ldx, 2},
+    {indx, lax, 6},
+    {zp, ldy, 3},
+    {zp, lda, 3},
+    {zp, ldx, 3},
+    {zp, lax, 3},
+    {imp, tay, 2},
+    {imm, lda, 2},
+    {imp, tax, 2},
+    {imm, nop, 2},
+    {abso, ldy, 4},
+    {abso, lda, 4},
+    {abso, ldx, 4},
+    {abso, lax, 4},
+    /* B0 */
+    {rel, bcs, 2},
+    {indy, lda, 5},
+    {imp, nop, 2},
+    {indy, lax, 5},
+    {zpx, ldy, 4},
+    {zpx, lda, 4},
+    {zpy, ldx, 4},
+    {zpy, lax, 4},
+    {imp, clv, 2},
+    {absy, lda, 4},
+    {imp, tsx, 2},
+    {absy, lax, 4},
+    {absx, ldy, 4},
+    {absx, lda, 4},
+    {absy, ldx, 4},
+    {absy, lax, 4},
+    /* C0 */
+    {imm, cpy, 2},
+    {indx, cmp, 6},
+    {imm, nop, 2},
+    {indx, dcp, 8},
+    {zp, cpy, 3},
+    {zp, cmp, 3},
+    {zp, dec, 5},
+    {zp, dcp, 5},
+    {imp, iny, 2},
+    {imm, cmp, 2},
+    {imp, dex, 2},
+    {imm, nop, 2},
+    {abso, cpy, 4},
+    {abso, cmp, 4},
+    {abso, dec, 6},
+    {abso, dcp, 6},
+    /* D0 */
+    {rel, bne, 2},
+    {indy, cmp, 5},
+    {imp, nop, 2},
+    {indy, dcp, 8},
+    {zpx, nop, 4},
+    {zpx, cmp, 4},
+    {zpx, dec, 6},
+    {zpx, dcp, 6},
+    {imp, cld, 2},
+    {absy, cmp, 4},
+    {imp, nop, 2},
+    {absy, dcp, 7},
+    {absx, nop, 4},
+    {absx, cmp, 4},
+    {absx, dec, 7},
+    {absx, dcp, 7},
+    /* E0 */
+    {imm, cpx, 2},
+    {indx, sbc, 6},
+    {imm, nop, 2},
+    {indx, isb, 8},
+    {zp, cpx, 3},
+    {zp, sbc, 3},
+    {zp, inc, 5},
+    {zp, isb, 5},
+    {imp, inx, 2},
+    {imm, sbc, 2},
+    {imp, nop, 2},
+    {imm, sbc, 2},
+    {abso, cpx, 4},
+    {abso, sbc, 4},
+    {abso, inc, 6},
+    {abso, isb, 6},
+    /* F0 */
+    {rel, beq, 2},
+    {indy, sbc, 5},
+    {imp, nop, 2},
+    {indy, isb, 8},
+    {zpx, nop, 4},
+    {zpx, sbc, 4},
+    {zpx, inc, 6},
+    {zpx, isb, 6},
+    {imp, sed, 2},
+    {absy, sbc, 4},
+    {imp, nop, 2},
+    {absy, isb, 7},
+    {absx, nop, 4},
+    {absx, sbc, 4},
+    {absx, inc, 7},
+    {absx, isb, 7}};
 
 void nmi6502(context_t *c) {
     push16(c, c->pc);
@@ -910,7 +1057,7 @@ void step(context_t *c) {
     c->opcode = opcode;
     c->flags |= FLAG_CONSTANT;
 
-    (*addrtable[opcode])(c);
-    (*optable[opcode])(c);
-    c->clockticks += ticktable[opcode];
+    opcodes[opcode].addr_mode(c);
+    opcodes[opcode].opcode(c);
+    c->clockticks += opcodes[opcode].clockticks;
 }
