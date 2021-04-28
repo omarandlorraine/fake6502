@@ -190,9 +190,10 @@ uint16_t pull16(context_t *c) {
     return pull8(c) << 8 | t;
 }
 
-uint16_t mem_read16(context_t * c, uint16_t addr) {
-	// Read two consecutive bytes from memory
-	return ((uint16_t)mem_read(c, addr) | ((uint16_t)mem_read(c, addr + 1) << 8));
+uint16_t mem_read16(context_t *c, uint16_t addr) {
+    // Read two consecutive bytes from memory
+    return ((uint16_t)mem_read(c, addr) |
+            ((uint16_t)mem_read(c, addr + 1) << 8));
 }
 
 void reset6502(context_t *c) {
@@ -263,7 +264,7 @@ static void absxi(context_t *c) { // (absolute,X)
     c->ea = mem_read16(c, c->pc);
     startpage = c->ea & 0xFF00;
     c->ea += (uint16_t)c->x;
-	c->ea = mem_read16(c, c->ea);
+    c->ea = mem_read16(c, c->ea);
 
     c->pc += 2;
 }
@@ -713,17 +714,17 @@ void tsx(context_t *c) {
     signcalc(c, c->x);
 }
 
-void trb(context_t * c) {
+void trb(context_t *c) {
     uint16_t value = getvalue(c);
     uint16_t result = (uint16_t)c->a & ~value;
-	putvalue(c, result);
+    putvalue(c, result);
     zerocalc(c, (c->a | result) & 0x00ff);
 }
 
-void tsb(context_t * c) {
+void tsb(context_t *c) {
     uint16_t value = getvalue(c);
     uint16_t result = (uint16_t)c->a | value;
-	putvalue(c, result);
+    putvalue(c, result);
     zerocalc(c, (c->a | result) & 0x00ff);
 }
 
@@ -1357,7 +1358,7 @@ void irq6502(context_t *c) {
         push16(c, c->pc);
         push8(c, c->flags & ~FLAG_BREAK);
         c->flags |= FLAG_INTERRUPT;
-		c->pc = mem_read16(c, 0xfffe);
+        c->pc = mem_read16(c, 0xfffe);
     }
 }
 
