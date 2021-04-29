@@ -293,7 +293,7 @@ uint8_t add8(context_t *c, uint16_t a, uint16_t b, bool carry) {
     overflowcalc(c, result, a, b);
     signcalc(c, result);
 
-#ifndef NES_CPU
+#ifdef DECIMALMODE
     if (c->flags & FLAG_DECIMAL) {
         clearcarry(c);
 
