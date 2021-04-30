@@ -280,11 +280,6 @@ static uint16_t getvalue(context_t *c) {
         return ((uint16_t)mem_read(c, c->ea));
 }
 
-static uint16_t getvalue16(context_t *c) {
-    return ((uint16_t)mem_read(c, c->ea) |
-            ((uint16_t)mem_read(c, c->ea + 1) << 8));
-}
-
 static void putvalue(context_t *c, uint16_t saveval) {
     if(opcodes[c->opcode].addr_mode == acc)
         c->a = (uint8_t)(saveval & 0x00FF);
