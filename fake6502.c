@@ -120,6 +120,14 @@
             clearoverflow(c);                                                  \
     }
 
+
+typedef struct {
+    void (*addr_mode)(context_t *c);
+    void (*opcode)(context_t *c);
+    int clockticks;
+} opcode_t;
+static opcode_t opcodes[256];
+
 // a few general functions used by various other functions
 void push8(context_t *c, uint8_t pushval) {
     mem_write(c, BASE_STACK + c->s--, pushval);
@@ -159,7 +167,6 @@ void reset6502(context_t *c) {
     c->flags |= FLAG_CONSTANT | FLAG_INTERRUPT;
 }
 
-static void (*addrtable[256])();
 // addressing mode functions, calculates effective addresses
 static void imp(context_t *c) { // implied
 }
@@ -267,7 +274,7 @@ static void zpi(context_t *c) { // (zp)
 }
 
 static uint16_t getvalue(context_t *c) {
-    if (addrtable[c->opcode] == acc)
+    if(opcodes[c->opcode].addr_mode == acc)
         return ((uint16_t)c->a);
     else
         return ((uint16_t)mem_read(c, c->ea));
@@ -279,7 +286,7 @@ static uint16_t getvalue16(context_t *c) {
 }
 
 static void putvalue(context_t *c, uint16_t saveval) {
-    if (addrtable[c->opcode] == acc)
+    if(opcodes[c->opcode].addr_mode == acc)
         c->a = (uint8_t)(saveval & 0x00FF);
     else
         mem_write(c, c->ea, (saveval & 0x00FF));
@@ -735,12 +742,6 @@ void rra(context_t *c) {
     putvalue(c, result);
     saveaccum(c, add8(c, c->a, result, c->flags & FLAG_CARRY));
 }
-
-typedef struct {
-    void (*addr_mode)(context_t *c);
-    void (*opcode)(context_t *c);
-    int clockticks;
-} opcode_t;
 
 #ifdef NMOS6502
 static opcode_t opcodes[256] = {

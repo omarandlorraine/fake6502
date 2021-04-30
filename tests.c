@@ -216,6 +216,20 @@ int pushpull() {
     return 0;
 }
 
+int rotations() {
+	context_t cpu;
+	cpu.a = 0x01;
+	cpu.flags = 0x00;
+	cpu.pc = 0x0200;
+	exec_instruction(&cpu, 0x6a, 0x00, 0x00); // ROR A
+	CHECK(a, 0x00);
+	CHECK(pc, 0x0201);
+	exec_instruction(&cpu, 0x6a, 0x00, 0x00); // ROR A
+	CHECK(a, 0x80);
+	CHECK(pc, 0x0202);
+	return 0;
+}
+
 int rra_opcode() {
     context_t cpu;
 
@@ -259,6 +273,7 @@ struct {
              {"binary mode", binary_mode},
              {"rra", &rra_opcode},
              {"push & pull", &pushpull},
+             {"rotations", &rotations},
              {NULL, NULL}};
 
 int main() {
