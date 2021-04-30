@@ -9,9 +9,9 @@
                       __LINE__, shouldbe, cpu.var);
 #define CHECKMEM(var, shouldbe)                                                \
     if (mem_read(&cpu, var) != (shouldbe))                                     \
-        return printf("memory location " #var                                  \
+        return printf("line %d: memory location " #var                         \
                       " should've been %02x but was %02x\n",                   \
-                      shouldbe, mem_read(&cpu, var));
+                      __LINE__, shouldbe, mem_read(&cpu, var));
 
 uint8_t mem[65536];
 
@@ -197,6 +197,25 @@ int binary_mode() {
     return 0;
 }
 
+int pushpull() {
+    context_t cpu;
+    cpu.a = 0x89;
+    cpu.s = 0xff;
+    cpu.pc = 0x0200;
+    exec_instruction(&cpu, 0xa9, 0x40, 0x00); // LDA #$40
+    exec_instruction(&cpu, 0x48, 0x00, 0x00); // PHA
+    CHECK(s, 0xfe);
+    CHECKMEM(0x01ff, 0x40);
+    exec_instruction(&cpu, 0xa9, 0x00, 0x00); // LDA #$00
+    exec_instruction(&cpu, 0x48, 0x00, 0x00); // PHA
+    CHECK(s, 0xfd);
+    CHECKMEM(0x01fe, 0x00);
+    exec_instruction(&cpu, 0x60, 0x00, 0x00); // RTS
+    CHECK(s, 0xff);
+    CHECK(pc, 0x4001);
+    return 0;
+}
+
 int rra_opcode() {
     context_t cpu;
 
@@ -239,6 +258,7 @@ struct {
              {"decimal mode", decimal_mode},
              {"binary mode", binary_mode},
              {"rra", &rra_opcode},
+             {"push & pull", &pushpull},
              {NULL, NULL}};
 
 int main() {
