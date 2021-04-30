@@ -4,7 +4,7 @@ GCOV=-fprofile-arcs -ftest-coverage
 OUTDIR=build/
 
 .PHONY: default
-default: $(OUTDIR)/fake6502.o $(OUTDIR)/fake2a03.o $(OUTDIR)/fake65c02.o $(OUTDIR)/fake6800.o
+default: $(OUTDIR)/fake6502.o $(OUTDIR)/fake2a03.o $(OUTDIR)/fake65c02.o
 
 $(OUTDIR):
 	mkdir -p $(OUTDIR)
