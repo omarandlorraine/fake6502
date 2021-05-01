@@ -230,6 +230,24 @@ int rotations() {
 	return 0;
 }
 
+int branches() {
+	context_t cpu;
+	cpu.flags = 0x00;
+	cpu.pc = 0x0200;
+	exec_instruction(&cpu, 0x10, 0x60, 0x00); // BPL *+$60
+	CHECK(pc, 0x0262);
+	exec_instruction(&cpu, 0x30, 0x10, 0x00); // BMI *+$10
+	CHECK(pc, 0x0264);
+	exec_instruction(&cpu, 0x50, 0x70, 0x00); // BVC *+$70
+	CHECK(pc, 0x02d6);
+	exec_instruction(&cpu, 0x90, 0x70, 0x00); // BCC *+$70
+	CHECK(pc, 0x0348);
+	exec_instruction(&cpu, 0x70, 0xfa, 0x00); // BVS *-$06
+	CHECK(pc, 0x034a);
+	CHECK(ea, 0x0344);
+	return 0;
+}
+
 int rra_opcode() {
     context_t cpu;
 
@@ -274,6 +292,7 @@ struct {
              {"rra", &rra_opcode},
              {"push & pull", &pushpull},
              {"rotations", &rotations},
+             {"branches", &branches},
              {NULL, NULL}};
 
 int main() {
