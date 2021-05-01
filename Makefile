@@ -40,6 +40,10 @@ cppcheck:
 format:
 	clang-format -style="{BasedOnStyle: llvm, IndentWidth: 4}" -i *.c
 
+.PHONY: strip
+strip:
+	strip $(OUTDIR)/*.o
+
 .PHONY: clean
 clean:
 	rm -rf build/
