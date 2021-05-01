@@ -11,5 +11,7 @@ check them for equivalence.
 The emulator as I found it, can be for a plain-Jane 6502 or for a 2A03 (rando
 variant found in some games console). I've taken the liberty of adding a barely
 tested CMOS support; this adds a few opcodes here and there). I might get round
-to adding support for other chips in the future. (Examples: more CMOS variants,
-maybe the 6800 and 6801)
+to adding support for other chips in the future.
+
+I've put a test harness around this. Coverage is currently around 40%, and
+increasing as and when.
