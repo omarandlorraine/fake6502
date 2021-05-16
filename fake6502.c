@@ -120,7 +120,6 @@
             clearoverflow(c);                                                  \
     }
 
-
 typedef struct {
     void (*addr_mode)(context_t *c);
     void (*opcode)(context_t *c);
@@ -282,7 +281,6 @@ static void indy(context_t *c) { // (indirect),Y
         (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
     startpage = c->ea & 0xFF00;
     c->ea += (uint16_t)c->y;
-
 }
 
 static void indy_p(context_t *c) { // (indirect),Y
@@ -294,9 +292,8 @@ static void indy_p(context_t *c) { // (indirect),Y
         (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
     startpage = c->ea & 0xFF00;
     c->ea += (uint16_t)c->y;
-	if(startpage != c->ea & 0xff00)
-		c->clockticks++;
-
+    if (startpage != c->ea & 0xff00)
+        c->clockticks++;
 }
 
 static void zpi(context_t *c) { // (zp)
@@ -310,14 +307,14 @@ static void zpi(context_t *c) { // (zp)
 }
 
 static uint16_t getvalue(context_t *c) {
-    if(opcodes[c->opcode].addr_mode == acc)
+    if (opcodes[c->opcode].addr_mode == acc)
         return ((uint16_t)c->a);
     else
         return ((uint16_t)mem_read(c, c->ea));
 }
 
 static void putvalue(context_t *c, uint16_t saveval) {
-    if(opcodes[c->opcode].addr_mode == acc)
+    if (opcodes[c->opcode].addr_mode == acc)
         c->a = (uint8_t)(saveval & 0x00FF);
     else
         mem_write(c, c->ea, (saveval & 0x00FF));
