@@ -208,8 +208,18 @@ static void abso(context_t *c) { // absolute
 static void absx(context_t *c) { // absolute,X
     uint16_t startpage;
     c->ea = mem_read16(c, c->pc);
+    c->ea += (uint16_t)c->x;
+
+    c->pc += 2;
+}
+
+static void absx_p(context_t *c) { // absolute,X with cycle penalty
+    uint16_t startpage;
+    c->ea = mem_read16(c, c->pc);
     startpage = c->ea & 0xFF00;
     c->ea += (uint16_t)c->x;
+    if (startpage != (c->ea & 0xff00))
+        c->clockticks++;
 
     c->pc += 2;
 }
@@ -229,6 +239,17 @@ static void absy(context_t *c) { // absolute,Y
     c->ea = mem_read16(c, c->pc);
     startpage = c->ea & 0xFF00;
     c->ea += (uint16_t)c->y;
+
+    c->pc += 2;
+}
+
+static void absy_p(context_t *c) { // absolute,Y
+    uint16_t startpage;
+    c->ea = mem_read16(c, c->pc);
+    startpage = c->ea & 0xFF00;
+    c->ea += (uint16_t)c->y;
+    if (startpage != (c->ea & 0xff00))
+        c->clockticks++;
 
     c->pc += 2;
 }
@@ -261,6 +282,21 @@ static void indy(context_t *c) { // (indirect),Y
         (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
     startpage = c->ea & 0xFF00;
     c->ea += (uint16_t)c->y;
+
+}
+
+static void indy_p(context_t *c) { // (indirect),Y
+    uint16_t eahelp, eahelp2, startpage;
+    eahelp = (uint16_t)mem_read(c, c->pc++);
+    eahelp2 =
+        (eahelp & 0xFF00) | ((eahelp + 1) & 0x00FF); // zero-page wraparound
+    c->ea =
+        (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
+    startpage = c->ea & 0xFF00;
+    c->ea += (uint16_t)c->y;
+	if(startpage != c->ea & 0xff00)
+		c->clockticks++;
+
 }
 
 static void zpi(context_t *c) { // (zp)
@@ -759,7 +795,7 @@ static opcode_t opcodes[256] = {
     {abso, slo, 6},
     /* 01 */
     {rel, bpl, 2},
-    {indy, ora, 5},
+    {indy_p, ora, 5},
     {imp, nop, 2},
     {indy, slo, 8},
     {zpx, nop, 4},
@@ -767,11 +803,11 @@ static opcode_t opcodes[256] = {
     {zpx, asl, 6},
     {zpx, slo, 6},
     {imp, clc, 2},
-    {absy, ora, 4},
+    {absy_p, ora, 4},
     {imp, nop, 2},
     {absy, slo, 7},
     {absx, nop, 4},
-    {absx, ora, 4},
+    {absx_p, ora, 4},
     {absx, asl, 7},
     {absx, slo, 7},
     /* 02 */
@@ -793,7 +829,7 @@ static opcode_t opcodes[256] = {
     {abso, rla, 6},
     /* 30 */
     {rel, bmi, 2},
-    {indy, and, 5},
+    {indy_p, and, 5},
     {imp, nop, 2},
     {indy, rla, 8},
     {zpx, nop, 4},
@@ -801,11 +837,11 @@ static opcode_t opcodes[256] = {
     {zpx, rol, 6},
     {zpx, rla, 6},
     {imp, sec, 2},
-    {absy, and, 4},
+    {absy_p, and, 4},
     {imp, nop, 2},
     {absy, rla, 7},
     {absx, nop, 4},
-    {absx, and, 4},
+    {absx_p, and, 4},
     {absx, rol, 7},
     {absx, rla, 7},
     /* 40 */
@@ -827,7 +863,7 @@ static opcode_t opcodes[256] = {
     {abso, sre, 6},
     /* 50 */
     {rel, bvc, 2},
-    {indy, eor, 5},
+    {indy_p, eor, 5},
     {imp, nop, 2},
     {indy, sre, 8},
     {zpx, nop, 4},
@@ -835,11 +871,11 @@ static opcode_t opcodes[256] = {
     {zpx, lsr, 6},
     {zpx, sre, 6},
     {imp, cli, 2},
-    {absy, eor, 4},
+    {absy_p, eor, 4},
     {imp, nop, 2},
     {absy, sre, 7},
     {absx, nop, 4},
-    {absx, eor, 4},
+    {absx_p, eor, 4},
     {absx, lsr, 7},
     {absx, sre, 7},
     /* 60 */
@@ -861,7 +897,7 @@ static opcode_t opcodes[256] = {
     {abso, rra, 6},
     /* 70 */
     {rel, bvs, 2},
-    {indy, adc, 5},
+    {indy_p, adc, 5},
     {imp, nop, 2},
     {indy, rra, 8},
     {zpx, nop, 4},
@@ -869,11 +905,11 @@ static opcode_t opcodes[256] = {
     {zpx, ror, 6},
     {zpx, rra, 6},
     {imp, sei, 2},
-    {absy, adc, 4},
+    {absy_p, adc, 4},
     {imp, nop, 2},
     {absy, rra, 7},
     {absx, nop, 4},
-    {absx, adc, 4},
+    {absx_p, adc, 4},
     {absx, ror, 7},
     {absx, rra, 7},
     /* 80*/
@@ -929,21 +965,21 @@ static opcode_t opcodes[256] = {
     {abso, lax, 4},
     /* B0 */
     {rel, bcs, 2},
-    {indy, lda, 5},
+    {indy_p, lda, 5},
     {imp, nop, 2},
-    {indy, lax, 5},
+    {indy_p, lax, 5},
     {zpx, ldy, 4},
     {zpx, lda, 4},
     {zpy, ldx, 4},
     {zpy, lax, 4},
     {imp, clv, 2},
-    {absy, lda, 4},
+    {absy_p, lda, 4},
     {imp, tsx, 2},
-    {absy, lax, 4},
-    {absx, ldy, 4},
-    {absx, lda, 4},
-    {absy, ldx, 4},
-    {absy, lax, 4},
+    {absy_p, lax, 4},
+    {absx_p, ldy, 4},
+    {absx_p, lda, 4},
+    {absy_p, ldx, 4},
+    {absy_p, lax, 4},
     /* C0 */
     {imm, cpy, 2},
     {indx, cmp, 6},
@@ -963,7 +999,7 @@ static opcode_t opcodes[256] = {
     {abso, dcp, 6},
     /* D0 */
     {rel, bne, 2},
-    {indy, cmp, 5},
+    {indy_p, cmp, 5},
     {imp, nop, 2},
     {indy, dcp, 8},
     {zpx, nop, 4},
@@ -971,11 +1007,11 @@ static opcode_t opcodes[256] = {
     {zpx, dec, 6},
     {zpx, dcp, 6},
     {imp, cld, 2},
-    {absy, cmp, 4},
+    {absy_p, cmp, 4},
     {imp, nop, 2},
     {absy, dcp, 7},
     {absx, nop, 4},
-    {absx, cmp, 4},
+    {absx_p, cmp, 4},
     {absx, dec, 7},
     {absx, dcp, 7},
     /* E0 */
@@ -997,7 +1033,7 @@ static opcode_t opcodes[256] = {
     {abso, isb, 6},
     /* F0 */
     {rel, beq, 2},
-    {indy, sbc, 5},
+    {indy_p, sbc, 5},
     {imp, nop, 2},
     {indy, isb, 8},
     {zpx, nop, 4},
@@ -1005,11 +1041,11 @@ static opcode_t opcodes[256] = {
     {zpx, inc, 6},
     {zpx, isb, 6},
     {imp, sed, 2},
-    {absy, sbc, 4},
+    {absy_p, sbc, 4},
     {imp, nop, 2},
     {absy, isb, 7},
     {absx, nop, 4},
-    {absx, sbc, 4},
+    {absx_p, sbc, 4},
     {absx, inc, 7},
     {absx, isb, 7}};
 #endif
@@ -1035,7 +1071,7 @@ static opcode_t opcodes[256] = {
     {abso, slo, 6},
     /* 01 */
     {rel, bpl, 2},
-    {indy, ora, 5},
+    {indy_p, ora, 5},
     {zpi, ora, 5},
     {indy, slo, 8},
     {zp, trb, 5},
@@ -1043,11 +1079,11 @@ static opcode_t opcodes[256] = {
     {zpx, asl, 6},
     {zpx, slo, 6},
     {imp, clc, 2},
-    {absy, ora, 4},
+    {absy_p, ora, 4},
     {acc, inc, 2},
     {absy, slo, 7},
     {abso, trb, 6},
-    {absx, ora, 4},
+    {absx_p, ora, 4},
     {absx, asl, 7},
     {absx, slo, 7},
     /* 02 */
@@ -1069,7 +1105,7 @@ static opcode_t opcodes[256] = {
     {abso, rla, 6},
     /* 30 */
     {rel, bmi, 2},
-    {indy, and, 5},
+    {indy_p, and, 5},
     {zpi, adc, 5},
     {indy, rla, 8},
     {zpx, bit, 4},
@@ -1077,11 +1113,11 @@ static opcode_t opcodes[256] = {
     {zpx, rol, 6},
     {zpx, rla, 6},
     {imp, sec, 2},
-    {absy, and, 4},
+    {absy_p, and, 4},
     {acc, dec, 2},
     {absy, rla, 7},
-    {absx, bit, 4},
-    {absx, and, 4},
+    {absx_p, bit, 4},
+    {absx_p, and, 4},
     {absx, rol, 7},
     {absx, rla, 7},
     /* 40 */
@@ -1103,7 +1139,7 @@ static opcode_t opcodes[256] = {
     {abso, sre, 6},
     /* 50 */
     {rel, bvc, 2},
-    {indy, eor, 5},
+    {indy_p, eor, 5},
     {zpi, eor, 5},
     {indy, sre, 8},
     {zpx, nop, 4},
@@ -1111,11 +1147,11 @@ static opcode_t opcodes[256] = {
     {zpx, lsr, 6},
     {zpx, sre, 6},
     {imp, cli, 2},
-    {absy, eor, 4},
+    {absy_p, eor, 4},
     {imp, phy, 2},
     {absy, sre, 7},
     {absx, nop, 4},
-    {absx, eor, 4},
+    {absx_p, eor, 4},
     {absx, lsr, 7},
     {absx, sre, 7},
     /* 60 */
@@ -1137,7 +1173,7 @@ static opcode_t opcodes[256] = {
     {abso, rra, 6},
     /* 70 */
     {rel, bvs, 2},
-    {indy, adc, 5},
+    {indy_p, adc, 5},
     {zpi, adc, 5},
     {indy, rra, 8},
     {zpx, stz, 4},
@@ -1145,11 +1181,11 @@ static opcode_t opcodes[256] = {
     {zpx, ror, 6},
     {zpx, rra, 6},
     {imp, sei, 2},
-    {absy, adc, 4},
+    {absy_p, adc, 4},
     {imp, ply, 6},
     {absy, rra, 7},
     {absxi, jmp, 4},
-    {absx, adc, 4},
+    {absx_p, adc, 4},
     {absx, ror, 7},
     {absx, rra, 7},
     /* 80 */
@@ -1205,21 +1241,21 @@ static opcode_t opcodes[256] = {
     {abso, lax, 4},
     /* B0 */
     {rel, bcs, 2},
-    {indy, lda, 5},
+    {indy_p, lda, 5},
     {zpi, lda, 5},
-    {indy, lax, 5},
+    {indy_p, lax, 5},
     {zpx, ldy, 4},
     {zpx, lda, 4},
     {zpy, ldx, 4},
     {zpy, lax, 4},
     {imp, clv, 2},
-    {absy, lda, 4},
+    {absy_p, lda, 4},
     {imp, tsx, 2},
-    {absy, lax, 4},
-    {absx, ldy, 4},
-    {absx, lda, 4},
-    {absy, ldx, 4},
-    {absy, lax, 4},
+    {absy_p, lax, 4},
+    {absx_p, ldy, 4},
+    {absx_p, lda, 4},
+    {absy_p, ldx, 4},
+    {absy_p, lax, 4},
     /* C0 */
     {imm, cpy, 2},
     {indx, cmp, 6},
@@ -1239,7 +1275,7 @@ static opcode_t opcodes[256] = {
     {abso, dcp, 6},
     /* D0 */
     {rel, bne, 2},
-    {indy, cmp, 5},
+    {indy_p, cmp, 5},
     {zpi, cmp, 5},
     {indy, dcp, 8},
     {zpx, nop, 4},
@@ -1247,11 +1283,11 @@ static opcode_t opcodes[256] = {
     {zpx, dec, 6},
     {zpx, dcp, 6},
     {imp, cld, 2},
-    {absy, cmp, 4},
+    {absy_p, cmp, 4},
     {imp, phx, 3},
     {absy, dcp, 7},
     {absx, nop, 4},
-    {absx, cmp, 4},
+    {absx_p, cmp, 4},
     {absx, dec, 7},
     {absx, dcp, 7},
     /* E0 */
@@ -1273,7 +1309,7 @@ static opcode_t opcodes[256] = {
     {abso, isb, 6},
     /* F0 */
     {rel, beq, 2},
-    {indy, sbc, 5},
+    {indy_p, sbc, 5},
     {zpi, sbc, 5},
     {indy, isb, 8},
     {zpx, nop, 4},
@@ -1281,11 +1317,11 @@ static opcode_t opcodes[256] = {
     {zpx, inc, 6},
     {zpx, isb, 6},
     {imp, sed, 2},
-    {absy, sbc, 4},
+    {absy_p, sbc, 4},
     {imp, plx, 2},
     {absy, isb, 7},
     {absx, nop, 4},
-    {absx, sbc, 4},
+    {absx_p, sbc, 4},
     {absx, inc, 7},
     {absx, isb, 7}};
 #endif
