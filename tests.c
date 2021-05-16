@@ -217,35 +217,79 @@ int pushpull() {
 }
 
 int rotations() {
-	context_t cpu;
-	cpu.a = 0x01;
-	cpu.flags = 0x00;
-	cpu.pc = 0x0200;
-	exec_instruction(&cpu, 0x6a, 0x00, 0x00); // ROR A
-	CHECK(a, 0x00);
-	CHECK(pc, 0x0201);
-	exec_instruction(&cpu, 0x6a, 0x00, 0x00); // ROR A
-	CHECK(a, 0x80);
-	CHECK(pc, 0x0202);
-	return 0;
+    context_t cpu;
+    cpu.a = 0x01;
+    cpu.flags = 0x00;
+    cpu.pc = 0x0200;
+    exec_instruction(&cpu, 0x6a, 0x00, 0x00); // ROR A
+    CHECK(a, 0x00);
+    CHECK(pc, 0x0201);
+    exec_instruction(&cpu, 0x6a, 0x00, 0x00); // ROR A
+    CHECK(a, 0x80);
+    CHECK(pc, 0x0202);
+    return 0;
 }
 
 int branches() {
-	context_t cpu;
-	cpu.flags = 0x00;
-	cpu.pc = 0x0200;
-	exec_instruction(&cpu, 0x10, 0x60, 0x00); // BPL *+$60
-	CHECK(pc, 0x0262);
-	exec_instruction(&cpu, 0x30, 0x10, 0x00); // BMI *+$10
-	CHECK(pc, 0x0264);
-	exec_instruction(&cpu, 0x50, 0x70, 0x00); // BVC *+$70
-	CHECK(pc, 0x02d6);
-	exec_instruction(&cpu, 0x90, 0x70, 0x00); // BCC *+$70
-	CHECK(pc, 0x0348);
-	exec_instruction(&cpu, 0x70, 0xfa, 0x00); // BVS *-$06
-	CHECK(pc, 0x034a);
-	CHECK(ea, 0x0344);
-	return 0;
+    context_t cpu;
+    cpu.flags = 0x00;
+    cpu.pc = 0x0200;
+    exec_instruction(&cpu, 0x10, 0x60, 0x00); // BPL *+$60
+    CHECK(pc, 0x0262);
+    exec_instruction(&cpu, 0x30, 0x10, 0x00); // BMI *+$10
+    CHECK(pc, 0x0264);
+    exec_instruction(&cpu, 0x50, 0x70, 0x00); // BVC *+$70
+    CHECK(pc, 0x02d6);
+    exec_instruction(&cpu, 0x90, 0x70, 0x00); // BCC *+$70
+    CHECK(pc, 0x0348);
+    exec_instruction(&cpu, 0x70, 0xfa, 0x00); // BVS *-$06
+    CHECK(pc, 0x034a);
+    CHECK(ea, 0x0344);
+    return 0;
+}
+
+int absolute() {
+    context_t cpu;
+    cpu.clockticks = 0;
+    cpu.pc = 0x200;
+    exec_instruction(&cpu, 0xad, 0x60, 0x00);
+    CHECK(ea, 0x0060);
+    CHECK(pc, 0x0203);
+    CHECK(clockticks, 4);
+    return 0;
+}
+
+int absolute_x() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.x = 0x80;
+    cpu.clockticks = 0;
+
+    exec_instruction(&cpu, 0xbd, 0x60, 0x00);
+    CHECK(ea, 0x00e0);
+    CHECK(pc, 0x0203);
+    CHECK(clockticks, 4);
+
+    // Takes another cycle because of page-crossing
+    cpu.clockticks = 0;
+    exec_instruction(&cpu, 0xbd, 0xa0, 0x00);
+    CHECK(ea, 0x0120);
+    CHECK(pc, 0x0206);
+    CHECK(clockticks, 5);
+
+    // Should NOT take another cycle because of page-crossing
+    cpu.clockticks = 0;
+    exec_instruction(&cpu, 0x9d, 0x60, 0x00);
+    CHECK(ea, 0x00e0);
+    CHECK(pc, 0x0209);
+    CHECK(clockticks, 5);
+
+    cpu.clockticks = 0;
+    exec_instruction(&cpu, 0x9d, 0xa0, 0x00);
+    CHECK(ea, 0x0120);
+    CHECK(pc, 0x020c);
+    CHECK(clockticks, 5);
+    return 0;
 }
 
 int rra_opcode() {
@@ -287,6 +331,8 @@ struct {
 } tests[] = {{"interrupts", &interrupt},
              {"zero page addressing", &zp},
              {"indexed zero page addressing", &zpx},
+             {"absolute addressing", &absolute},
+             {"absolute,x addressing", &absolute_x},
              {"decimal mode", decimal_mode},
              {"binary mode", binary_mode},
              {"rra", &rra_opcode},
