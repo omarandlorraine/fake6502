@@ -205,7 +205,6 @@ static void abso(context_t *c) { // absolute
 }
 
 static void absx(context_t *c) { // absolute,X
-    uint16_t startpage;
     c->ea = mem_read16(c, c->pc);
     c->ea += (uint16_t)c->x;
 
@@ -224,9 +223,7 @@ static void absx_p(context_t *c) { // absolute,X with cycle penalty
 }
 
 static void absxi(context_t *c) { // (absolute,X)
-    uint16_t startpage;
     c->ea = mem_read16(c, c->pc);
-    startpage = c->ea & 0xFF00;
     c->ea += (uint16_t)c->x;
     c->ea = mem_read16(c, c->ea);
 
@@ -234,9 +231,7 @@ static void absxi(context_t *c) { // (absolute,X)
 }
 
 static void absy(context_t *c) { // absolute,Y
-    uint16_t startpage;
     c->ea = mem_read16(c, c->pc);
-    startpage = c->ea & 0xFF00;
     c->ea += (uint16_t)c->y;
 
     c->pc += 2;
@@ -273,13 +268,12 @@ static void indx(context_t *c) { // (indirect,X)
 }
 
 static void indy(context_t *c) { // (indirect),Y
-    uint16_t eahelp, eahelp2, startpage;
+    uint16_t eahelp, eahelp2;
     eahelp = (uint16_t)mem_read(c, c->pc++);
     eahelp2 =
         (eahelp & 0xFF00) | ((eahelp + 1) & 0x00FF); // zero-page wraparound
     c->ea =
         (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
-    startpage = c->ea & 0xFF00;
     c->ea += (uint16_t)c->y;
 }
 
@@ -297,13 +291,12 @@ static void indy_p(context_t *c) { // (indirect),Y
 }
 
 static void zpi(context_t *c) { // (zp)
-    uint16_t eahelp, eahelp2, startpage;
+    uint16_t eahelp, eahelp2;
     eahelp = (uint16_t)mem_read(c, c->pc++);
     eahelp2 =
         (eahelp & 0xFF00) | ((eahelp + 1) & 0x00FF); // zero-page wraparound
     c->ea =
         (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
-    startpage = c->ea & 0xFF00;
 }
 
 static uint16_t getvalue(context_t *c) {
@@ -489,8 +482,6 @@ uint8_t decrement(context_t *c, uint8_t r) {
 
 void dec(context_t *c) { putvalue(c, decrement(c, getvalue(c))); }
 
-void dea(context_t *c) { c->a = decrement(c, c->a); }
-
 void dex(context_t *c) { c->x = decrement(c, c->x); }
 
 void dey(context_t *c) { c->y = decrement(c, c->y); }
@@ -513,8 +504,6 @@ uint8_t increment(context_t *c, uint8_t r) {
 }
 
 void inc(context_t *c) { putvalue(c, increment(c, getvalue(c))); }
-
-void ina(context_t *c) { c->a = increment(c, c->a); }
 
 void inx(context_t *c) { c->x = increment(c, c->x); }
 
