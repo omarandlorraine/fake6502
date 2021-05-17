@@ -286,7 +286,7 @@ static void indy_p(context_t *c) { // (indirect),Y
         (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
     startpage = c->ea & 0xFF00;
     c->ea += (uint16_t)c->y;
-    if (startpage != c->ea & 0xff00)
+    if (startpage != (c->ea & 0xff00))
         c->clockticks++;
 }
 
