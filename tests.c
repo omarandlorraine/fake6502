@@ -292,6 +292,48 @@ int absolute_x() {
     return 0;
 }
 
+int indirect_y() {
+	context_t cpu;
+	cpu.pc = 0x200;
+	cpu.y = 0x80;
+	mem_write(&cpu, 0x20, 0x81);
+	mem_write(&cpu, 0x21, 0x20);
+
+    // Takes another cycle because of page-crossing
+    cpu.clockticks = 0;
+    exec_instruction(&cpu, 0xb1, 0x20, 0x00);
+    CHECK(ea, 0x2101);
+    CHECK(pc, 0x0202);
+    CHECK(clockticks, 6);
+
+    // Should NOT take another cycle because of page-crossing
+    cpu.clockticks = 0;
+	cpu.y = 0x10;
+    exec_instruction(&cpu, 0xb1, 0x20, 0x00);
+    CHECK(ea, 0x2091);
+    CHECK(pc, 0x0204);
+    CHECK(clockticks, 5);
+
+    // Takes 6 cycles regardless of page-crossing or not
+    cpu.clockticks = 0;
+	cpu.y = 0x80;
+    exec_instruction(&cpu, 0x91, 0x20, 0x00);
+    CHECK(ea, 0x2101);
+    CHECK(pc, 0x0206);
+    CHECK(clockticks, 6);
+
+    // Takes 6 cycles regardless of page-crossing or not
+    cpu.clockticks = 0;
+	cpu.y = 0x10;
+    exec_instruction(&cpu, 0x91, 0x20, 0x00);
+    CHECK(ea, 0x2091);
+    CHECK(pc, 0x0208);
+    CHECK(clockticks, 6);
+
+return 0;
+
+}
+
 int rra_opcode() {
     context_t cpu;
 
@@ -333,6 +375,7 @@ struct {
              {"indexed zero page addressing", &zpx},
              {"absolute addressing", &absolute},
              {"absolute,x addressing", &absolute_x},
+             {"indirect,x addressing", &indirect_y},
              {"decimal mode", decimal_mode},
              {"binary mode", binary_mode},
              {"rra", &rra_opcode},
