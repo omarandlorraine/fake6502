@@ -51,10 +51,11 @@
 #include <stdint.h>
 #include <stdio.h>
 
-// #define NES_CPU      //when this is defined, the binary-coded decimal (BCD)
-// status flag is not honored by ADC and SBC. the 2A03
-// CPU in the Nintendo Entertainment System does not
-// support BCD operation.
+/* #define NES_CPU
+ * when this is defined, the binary-coded decimal (BCD) status flag is not
+ * honored by ADC and SBC. the 2A03 CPU in the Nintendo Entertainment System
+ * does not support BCD operation.
+ */
 
 #define FLAG_CARRY 0x01
 #define FLAG_ZERO 0x02
@@ -353,7 +354,7 @@ void adc(context_t *c) {
     saveaccum(c, add8(c, c->a, value, c->flags & FLAG_CARRY));
 }
 
-void and (context_t * c) {
+void and(context_t *c) {
     uint8_t m = getvalue(c);
     uint16_t result = (uint16_t)c->a & m;
 
