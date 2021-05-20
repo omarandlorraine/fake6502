@@ -292,6 +292,39 @@ int absolute_x() {
     return 0;
 }
 
+int absolute_y() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.y = 0x80;
+    cpu.clockticks = 0;
+
+    exec_instruction(&cpu, 0xb9, 0x60, 0x00);
+    CHECK(ea, 0x00e0);
+    CHECK(pc, 0x0203);
+    CHECK(clockticks, 4);
+
+    // Takes another cycle because of page-crossing
+    cpu.clockticks = 0;
+    exec_instruction(&cpu, 0xb9, 0xa0, 0x00);
+    CHECK(ea, 0x0120);
+    CHECK(pc, 0x0206);
+    CHECK(clockticks, 5);
+
+    // Should NOT take another cycle because of page-crossing
+    cpu.clockticks = 0;
+    exec_instruction(&cpu, 0x99, 0x60, 0x00);
+    CHECK(ea, 0x00e0);
+    CHECK(pc, 0x0209);
+    CHECK(clockticks, 5);
+
+    cpu.clockticks = 0;
+    exec_instruction(&cpu, 0x99, 0xa0, 0x00);
+    CHECK(ea, 0x0120);
+    CHECK(pc, 0x020c);
+    CHECK(clockticks, 5);
+    return 0;
+}
+
 int indirect_y() {
     context_t cpu;
     cpu.pc = 0x200;
@@ -374,6 +407,7 @@ struct {
              {"indexed zero page addressing", &zpx},
              {"absolute addressing", &absolute},
              {"absolute,x addressing", &absolute_x},
+             {"absolute,y addressing", &absolute_y},
              {"indirect,x addressing", &indirect_y},
              {"decimal mode", decimal_mode},
              {"binary mode", binary_mode},
