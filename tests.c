@@ -3,6 +3,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define FLAG_CARRY 0x01
+#define FLAG_ZERO 0x02
+#define FLAG_INTERRUPT 0x04
+#define FLAG_DECIMAL 0x08
+#define FLAG_BREAK 0x10
+#define FLAG_CONSTANT 0x20
+#define FLAG_OVERFLOW 0x40
+
 #define CHECK(var, shouldbe)                                                   \
     if (cpu.var != shouldbe)                                                   \
         return printf("line %d: " #var " should've been %04x but was %04x\n",  \
@@ -12,6 +20,12 @@
         return printf("line %d: memory location " #var                         \
                       " should've been %02x but was %02x\n",                   \
                       __LINE__, shouldbe, mem_read(&cpu, var));
+
+#define CHECKFLAG(flag, shouldbe)                                              \
+    if (!!(cpu.flags & flag) != !!shouldbe)                                    \
+        return printf(                                                         \
+            "line %d: " #flag " should be %sset but isn't, [ %02x, %02x] \n",  \
+            __LINE__, shouldbe ? "" : "re", (cpu.flags & flag), shouldbe);
 
 uint8_t mem[65536];
 
@@ -325,6 +339,22 @@ int absolute_y() {
     return 0;
 }
 
+int indirect() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    mem_write(&cpu, 0x8000, 0x01);
+    mem_write(&cpu, 0x80fe, 0x02);
+    mem_write(&cpu, 0x80ff, 0x03);
+    mem_write(&cpu, 0x8100, 0x04);
+
+    cpu.clockticks = 0;
+    exec_instruction(&cpu, 0x6c, 0xff, 0x80);
+    CHECK(pc, 0x0103);
+    CHECK(clockticks, 5);
+
+    return 0;
+}
+
 int indirect_y() {
     context_t cpu;
     cpu.pc = 0x200;
@@ -362,6 +392,32 @@ int indirect_y() {
     CHECK(ea, 0x2091);
     CHECK(pc, 0x0208);
     CHECK(clockticks, 6);
+
+    return 0;
+}
+
+int flags() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.flags = 0xff;
+
+    exec_instruction(&cpu, 0x18, 0x00, 0x00);
+    CHECKFLAG(FLAG_CARRY, 0);
+    exec_instruction(&cpu, 0x38, 0x00, 0x00);
+    CHECKFLAG(FLAG_CARRY, 1);
+
+    exec_instruction(&cpu, 0x58, 0x00, 0x00);
+    CHECKFLAG(FLAG_INTERRUPT, 0);
+    exec_instruction(&cpu, 0x78, 0x00, 0x00);
+    CHECKFLAG(FLAG_INTERRUPT, 1);
+
+    exec_instruction(&cpu, 0xd8, 0x00, 0x00);
+    CHECKFLAG(FLAG_DECIMAL, 0);
+    exec_instruction(&cpu, 0xf8, 0x00, 0x00);
+    CHECKFLAG(FLAG_DECIMAL, 1);
+
+    exec_instruction(&cpu, 0xb8, 0x00, 0x00);
+    CHECKFLAG(FLAG_OVERFLOW, 0);
 
     return 0;
 }
@@ -408,8 +464,10 @@ struct {
              {"absolute addressing", &absolute},
              {"absolute,x addressing", &absolute_x},
              {"absolute,y addressing", &absolute_y},
+             {"indirect addressing", &indirect},
              {"indirect,x addressing", &indirect_y},
              {"decimal mode", decimal_mode},
+             {"flags set & reset", flags},
              {"binary mode", binary_mode},
              {"rra", &rra_opcode},
              {"push & pull", &pushpull},
