@@ -57,6 +57,13 @@
  * does not support BCD operation.
  */
 
+/* #define NMOS6502
+ * #define CMOS6502
+ * define one or other of these. This will configure the emulator to emulate
+ * either the NMOS or CMOS variants (CMOS adds bugfixes and several
+ * instructions)
+ */
+
 #define FLAG_CARRY 0x01
 #define FLAG_ZERO 0x02
 #define FLAG_INTERRUPT 0x04
@@ -354,7 +361,7 @@ void adc(context_t *c) {
     saveaccum(c, add8(c, c->a, value, c->flags & FLAG_CARRY));
 }
 
-void and(context_t *c) {
+void and (context_t * c) {
     uint8_t m = getvalue(c);
     uint16_t result = (uint16_t)c->a & m;
 
