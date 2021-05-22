@@ -342,13 +342,34 @@ uint8_t add8(context_t *c, uint16_t a, uint16_t b, bool carry) {
     return result;
 }
 
-uint8_t ror8(context_t *c, uint16_t value) {
+uint8_t rotate_right(context_t *c, uint16_t value) {
     uint16_t result = (value >> 1) | ((c->flags & FLAG_CARRY) << 7);
 
     if (value & 1)
         setcarry(c);
     else
         clearcarry(c);
+    zerocalc(c, result);
+    signcalc(c, result);
+
+    return result;
+}
+
+uint8_t logical_shift_right(context_t *c, uint8_t value) {
+    uint16_t result = value >> 1;
+    if (value & 1)
+        setcarry(c);
+    else
+        clearcarry(c);
+    zerocalc(c, result);
+    signcalc(c, result);
+
+    return result;
+}
+
+uint8_t exclusive_or(context_t *c, uint8_t a, uint8_t b) {
+    uint16_t result = a ^ b;
+
     zerocalc(c, result);
     signcalc(c, result);
 
@@ -489,15 +510,7 @@ void dex(context_t *c) { c->x = decrement(c, c->x); }
 
 void dey(context_t *c) { c->y = decrement(c, c->y); }
 
-void eor(context_t *c) {
-    uint16_t value = getvalue(c);
-    uint16_t result = (uint16_t)c->a ^ value;
-
-    zerocalc(c, result);
-    signcalc(c, result);
-
-    saveaccum(c, result);
-}
+void eor(context_t *c) { saveaccum(c, exclusive_or(c, c->a, getvalue(c))); }
 
 uint8_t increment(context_t *c, uint8_t r) {
     uint16_t result = r + 1;
@@ -543,19 +556,7 @@ void ldy(context_t *c) {
     signcalc(c, c->y);
 }
 
-void lsr(context_t *c) {
-    uint16_t value = getvalue(c);
-    uint16_t result = value >> 1;
-
-    if (value & 1)
-        setcarry(c);
-    else
-        clearcarry(c);
-    zerocalc(c, result);
-    signcalc(c, result);
-
-    putvalue(c, result);
-}
+void lsr(context_t *c) { putvalue(c, logical_shift_right(c, getvalue(c))); }
 
 void nop(context_t *c) {}
 
@@ -615,7 +616,7 @@ void ror(context_t *c) {
     uint16_t value = getvalue(c);
 
     putvalue(c, value);
-    putvalue(c, ror8(c, value));
+    putvalue(c, rotate_right(c, value));
 }
 
 void rti(context_t *c) {
@@ -751,13 +752,16 @@ void rla(context_t *c) {
 }
 
 void sre(context_t *c) {
-    lsr(c);
-    eor(c);
+    uint16_t value = getvalue(c);
+    uint16_t result = logical_shift_right(c, value);
+    putvalue(c, value);
+    putvalue(c, result);
+    saveaccum(c, exclusive_or(c, c->a, result));
 }
 
 void rra(context_t *c) {
     uint16_t value = getvalue(c);
-    uint16_t result = ror8(c, value);
+    uint16_t result = rotate_right(c, value);
     putvalue(c, value);
     putvalue(c, result);
     saveaccum(c, add8(c, c->a, result, c->flags & FLAG_CARRY));
