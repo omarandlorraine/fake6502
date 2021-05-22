@@ -32,7 +32,8 @@ lcov: $(OUTDIR)
 	lcov --capture -d $(OUTDIR)/ --output-file $(OUTDIR)/coverage.info
 	mkdir -p $(OUTDIR)/coverage
 	cd $(OUTDIR)/coverage && genhtml ../coverage.info
-	sensible-browser $(OUTDIR)/coverage/index.html
+	sensible-browser $(OUTDIR)/coverage/fake6502/index.html
+
 
 cppcheck:
 	cppcheck --enable=all fake6502.c tests.c
