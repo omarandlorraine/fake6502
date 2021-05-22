@@ -232,6 +232,7 @@ int pushpull() {
 
 int rotations() {
     context_t cpu;
+
     cpu.a = 0x01;
     cpu.flags = 0x00;
     cpu.pc = 0x0200;
@@ -240,6 +241,16 @@ int rotations() {
     CHECK(pc, 0x0201);
     exec_instruction(&cpu, 0x6a, 0x00, 0x00); // ROR A
     CHECK(a, 0x80);
+    CHECK(pc, 0x0202);
+
+    cpu.a = 0x01;
+    cpu.flags = 0x00;
+    cpu.pc = 0x0200;
+    exec_instruction(&cpu, 0x4a, 0x00, 0x00); // LSR A
+    CHECK(a, 0x00);
+    CHECK(pc, 0x0201);
+    exec_instruction(&cpu, 0x4a, 0x00, 0x00); // LSR A
+    CHECK(a, 0x00);
     CHECK(pc, 0x0202);
     return 0;
 }
@@ -449,6 +460,23 @@ int rra_opcode() {
     return 0;
 }
 
+int sre_opcode() {
+    context_t cpu;
+
+    cpu.a = 0x3;
+    cpu.pc = 0x200;
+    mem_write(&cpu, 0x01, 0x02);
+
+    exec_instruction(&cpu, 0x47, 0x01, 0x00); // LSE $01
+    if (mem_read(&cpu, 0x01) != 0x01)
+        return printf("the memory location didn't get shifted");
+
+    CHECK(pc, 0x0202);
+    CHECK(ea, 0x0001);
+    CHECK(a, 0x02);
+    return 0;
+}
+
 /*
    See this document:
    http://www.zimmers.net/anonftp/pub/cbm/documents/chipdata/6502-NMOS.extra.opcodes
@@ -470,6 +498,7 @@ struct {
              {"flags set & reset", flags},
              {"binary mode", binary_mode},
              {"rra", &rra_opcode},
+             {"sre", &sre_opcode},
              {"push & pull", &pushpull},
              {"rotations", &rotations},
              {"branches", &branches},
