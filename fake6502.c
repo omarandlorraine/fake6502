@@ -251,6 +251,7 @@ static void absy_p(context_t *c) { // absolute,Y
     c->pc += 2;
 }
 
+#ifdef NMOS6502
 static void ind(context_t *c) { // indirect
     uint16_t eahelp, eahelp2;
     eahelp = mem_read16(c, c->pc);
@@ -261,6 +262,18 @@ static void ind(context_t *c) { // indirect
         (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
     c->pc += 2;
 }
+#endif
+
+#ifdef CMOS6502
+static void ind(context_t *c) { // indirect
+    uint16_t eahelp, eahelp2;
+    eahelp = mem_read16(c, c->pc);
+    if ((eahelp & 0x00ff) == 0xff)
+        c->clockticks++;
+    c->ea = mem_read16(c, eahelp);
+    c->pc += 2;
+}
+#endif
 
 static void indx(context_t *c) { // (indirect,X)
     uint16_t eahelp;
