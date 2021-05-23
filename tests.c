@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #define FLAG_CARRY 0x01
 #define FLAG_ZERO 0x02
@@ -483,32 +484,63 @@ int sre_opcode() {
    for information about how illegal opcodes work
 */
 
-struct {
+int cmos_jmp_indirect() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    mem_write(&cpu, 0x8000, 0x01);
+    mem_write(&cpu, 0x80fe, 0x02);
+    mem_write(&cpu, 0x80ff, 0x03);
+    mem_write(&cpu, 0x8100, 0x04);
+
+    cpu.clockticks = 0;
+    exec_instruction(&cpu, 0x6c, 0xff, 0x80);
+    CHECK(pc, 0x0403);
+    CHECK(clockticks, 6);
+
+    return 0;
+}
+
+typedef struct {
     char *testname;
     int (*fp)();
-} tests[] = {{"interrupts", &interrupt},
-             {"zero page addressing", &zp},
-             {"indexed zero page addressing", &zpx},
-             {"absolute addressing", &absolute},
-             {"absolute,x addressing", &absolute_x},
-             {"absolute,y addressing", &absolute_y},
-             {"indirect addressing", &indirect},
-             {"indirect,x addressing", &indirect_y},
-             {"decimal mode", decimal_mode},
-             {"flags set & reset", flags},
-             {"binary mode", binary_mode},
-             {"rra", &rra_opcode},
-             {"sre", &sre_opcode},
-             {"push & pull", &pushpull},
-             {"rotations", &rotations},
-             {"branches", &branches},
-             {NULL, NULL}};
+} test_t;
 
-int main() {
+test_t tests[] = {{"interrupts", &interrupt},
+                  {"zero page addressing", &zp},
+                  {"indexed zero page addressing", &zpx},
+                  {"absolute addressing", &absolute},
+                  {"absolute,x addressing", &absolute_x},
+                  {"absolute,y addressing", &absolute_y},
+                  {"indirect,x addressing", &indirect_y},
+                  {"decimal mode", decimal_mode},
+                  {"flags set & reset", flags},
+                  {"binary mode", binary_mode},
+                  {"push & pull", &pushpull},
+                  {"rotations", &rotations},
+                  {"branches", &branches},
+                  {NULL, NULL}};
+
+test_t nmos_tests[] = {{"indirect addressing", &indirect},
+                       {"rra", &rra_opcode},
+                       {"sre", &sre_opcode},
+                       {NULL, NULL}};
+
+test_t cmos_tests[] = {{"CMOS jmp indirect", &cmos_jmp_indirect}, {NULL, NULL}};
+
+int run_tests(test_t tests[]) {
     for (int i = 0; tests[i].fp; i++) {
-        int result = tests[i].fp();
-        printf("%s %s\n", tests[i].testname, result ? "failed!" : "okay");
-        if (result)
-            exit(result);
+        if (tests[i].fp()) {
+            printf("\033[0;31m%s failed\033[0;37m\n", tests[i].testname);
+            exit(1);
+        }
+        printf("\033[0;33m%s okay\033[0;37m\n", tests[i].testname);
     }
+}
+
+int main(int argc, char **argv) {
+    run_tests(tests);
+    if (!strcmp(argv[1], "cmos"))
+        run_tests(cmos_tests);
+    if (!strcmp(argv[1], "nmos"))
+        run_tests(nmos_tests);
 }

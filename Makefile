@@ -21,9 +21,20 @@ $(OUTDIR)/tests: fake6502.c tests.c $(OUTDIR)
 	gcc $(GCOV) $(CFLAGS) tests.c -c -o $(OUTDIR)/tests.o
 	gcc -lgcov --coverage $(OUTDIR)/tests.o $(OUTDIR)/fake6502_test.o -o $(OUTDIR)/tests
 
+$(OUTDIR)/test6502: fake6502.c tests.c $(OUTDIR)
+	$(CC) $(GCOV) -DDECIMALMODE -DNMOS6502 -c $(CFLAGS) fake6502.c -o $(OUTDIR)/fake6502_test.o
+	gcc $(GCOV) $(CFLAGS) tests.c -c -o $(OUTDIR)/tests_6502.o
+	gcc -lgcov --coverage $(OUTDIR)/tests_6502.o $(OUTDIR)/fake6502_test.o -o $(OUTDIR)/test6502
+
+$(OUTDIR)/test65c02: fake6502.c tests.c $(OUTDIR)
+	$(CC) $(GCOV) -DDECIMALMODE -DCMOS6502 -c $(CFLAGS) fake6502.c -o $(OUTDIR)/fake65c02_test.o
+	gcc $(GCOV) $(CFLAGS) tests.c -c -o $(OUTDIR)/tests_65c02.o
+	gcc -lgcov --coverage $(OUTDIR)/tests_6502.o $(OUTDIR)/fake65c02_test.o -o $(OUTDIR)/test65c02
+
 .PHONY: test
-test: $(OUTDIR)/tests
-	valgrind -q ./$(OUTDIR)/tests
+test: $(OUTDIR)/test6502 $(OUTDIR)/test65c02
+	valgrind -q ./$(OUTDIR)/test6502 nmos
+	valgrind -q ./$(OUTDIR)/test65c02 cmos
 
 lcov: $(OUTDIR)
 	lcov --zerocounters -d $(OUTDIR)/
