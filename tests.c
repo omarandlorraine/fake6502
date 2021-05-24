@@ -57,6 +57,9 @@ void exec_instruction(context_t *cpu, uint8_t opcode, uint8_t op1,
     mem_write(cpu, cpu->pc, opcode);
     mem_write(cpu, cpu->pc + 1, op1);
     mem_write(cpu, cpu->pc + 2, op2);
+
+	cpu->clockticks = reads = writes = 0;
+
     step(cpu);
 }
 
@@ -82,8 +85,7 @@ int interrupt() {
     CHECK(s, 0x00fd);
     CHECK(pc, 0x5000);
 
-    if (!(cpu.flags & 0x04))
-        return printf("the reset did not set the interrupt flag\n");
+	CHECKFLAG(FLAG_INTERRUPT, 1);
 
     // This IRQ shouldn't fire because the interrupts are disabled
     irq6502(&cpu);
@@ -103,16 +105,14 @@ int interrupt() {
     CHECKMEM(0x01fc, 0x00);
     CHECKMEM(0x01fb, cpu.flags & 0xeb);
 
-    if (!(cpu.flags & 0x04))
-        return printf("the irq did not set the interrupt flag\n");
+	CHECKFLAG(FLAG_INTERRUPT, 1);
 
     // The NMI may fire even when the Interrupt flag is set
     nmi6502(&cpu);
     CHECK(s, 0x00f7);
     CHECK(pc, 0x4000);
 
-    if (!(cpu.flags & 0x04))
-        return printf("the nmi did not set the interrupt flag\n");
+	CHECKFLAG(FLAG_INTERRUPT, 1);
 
     return 0;
 }
@@ -441,19 +441,16 @@ int rra_opcode() {
     cpu.flags &= 0xf6; // Turn off the carry flag and decimal mode
     mem_write(&cpu, 0x01, 0x02);
 
-    mem_write(&cpu, 0x200, 0x67);
-    mem_write(&cpu, 0x201, 0x01);
     cpu.pc = 0x200;
     reads = 0;
     writes = 0;
-    step(&cpu);
+	exec_instruction(&cpu, 0x67, 0x01, 0x00);
 
     if (reads != 3)
         return printf("rra zero-page did %d reads instead of 3\n", reads);
     if (writes != 2)
         return printf("rra zero-page did %d writes instead of 2\n", writes);
-    if (mem_read(&cpu, 0x01) != 0x01)
-        return printf("the memory location didn't get rotated");
+	CHECKMEM(0x01, 0x01);
 
     CHECK(pc, 0x0202);
     CHECK(ea, 0x0001);
@@ -469,8 +466,7 @@ int sre_opcode() {
     mem_write(&cpu, 0x01, 0x02);
 
     exec_instruction(&cpu, 0x47, 0x01, 0x00); // LSE $01
-    if (mem_read(&cpu, 0x01) != 0x01)
-        return printf("the memory location didn't get shifted");
+	CHECKMEM(0x01, 0x01);
 
     CHECK(pc, 0x0202);
     CHECK(ea, 0x0001);
@@ -530,10 +526,10 @@ test_t cmos_tests[] = {{"CMOS jmp indirect", &cmos_jmp_indirect}, {NULL, NULL}};
 int run_tests(test_t tests[]) {
     for (int i = 0; tests[i].fp; i++) {
         if (tests[i].fp()) {
-            printf("\033[0;31m%s failed\033[0;37m\n", tests[i].testname);
+            printf("\033[0;31m%s failed\033[0m\n", tests[i].testname);
             exit(1);
         }
-        printf("\033[0;33m%s okay\033[0;37m\n", tests[i].testname);
+        printf("\033[0;33m%s okay\033[0m\n", tests[i].testname);
     }
 }
 
