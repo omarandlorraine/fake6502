@@ -42,16 +42,6 @@ void mem_write(context_t *c, uint16_t addr, uint8_t val) {
     mem[addr] = val;
 }
 
-void print_address(uint16_t addr) {
-    printf("    %04x: %02x\n", addr, mem_read((context_t *)NULL, addr));
-}
-
-void print_stack() {
-    for (int i = 0xff; i; i--) {
-        print_address(0x0100 + i);
-    }
-}
-
 void exec_instruction(context_t *cpu, uint8_t opcode, uint8_t op1,
                       uint8_t op2) {
     mem_write(cpu, cpu->pc, opcode);
