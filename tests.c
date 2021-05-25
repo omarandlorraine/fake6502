@@ -433,6 +433,36 @@ int indirect_x() {
     return 0;
 }
 
+int zpi() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.x = 0x59;
+    mem_write(&cpu, 0x20, 0x81);
+    mem_write(&cpu, 0x21, 0x20);
+    mem_write(&cpu, 0xff, 0x81);
+    mem_write(&cpu, 0x00, 0x20);
+
+    exec_instruction(&cpu, 0xb2, 0x20, 0x00);
+    CHECK(ea, 0x2081);
+    CHECK(pc, 0x0202);
+    CHECK(clockticks, 5);
+
+    cpu.x = 0;
+    exec_instruction(&cpu, 0xb2, 0x20, 0x00);
+    CHECK(ea, 0x2081);
+    CHECK(clockticks, 5);
+
+    exec_instruction(&cpu, 0x92, 0xff, 0x00);
+    CHECK(ea, 0x2081);
+    CHECK(clockticks, 5);
+
+    exec_instruction(&cpu, 0x92, 0x20, 0x00);
+    CHECK(ea, 0x2081);
+    CHECK(clockticks, 5);
+
+    return 0;
+}
+
 int flags() {
     context_t cpu;
     cpu.pc = 0x200;
@@ -561,6 +591,7 @@ test_t nmos_tests[] = {{"indirect addressing", &indirect},
 
 test_t cmos_tests[] = {{"CMOS jmp indirect", &cmos_jmp_indirect},
                        {"(absolute,x)", &cmos_jmp_absxi},
+                       {"(zp) addressing", &zpi},
                        {NULL, NULL}};
 
 int run_tests(test_t tests[]) {
