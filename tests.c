@@ -398,6 +398,41 @@ int indirect_y() {
     return 0;
 }
 
+int indirect_x() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.x = 0x00;
+    mem_write(&cpu, 0x20, 0x81);
+    mem_write(&cpu, 0x21, 0x20);
+    mem_write(&cpu, 0xff, 0x81);
+    mem_write(&cpu, 0x00, 0x20);
+
+    exec_instruction(&cpu, 0xa1, 0x20, 0x00);
+    CHECK(ea, 0x2081);
+    CHECK(pc, 0x0202);
+    CHECK(clockticks, 6);
+
+    cpu.x = 0x40;
+    exec_instruction(&cpu, 0xa1, 0xe0, 0x00);
+    CHECK(ea, 0x2081);
+    CHECK(clockticks, 6);
+
+    cpu.x = 0;
+    exec_instruction(&cpu, 0xa1, 0x20, 0x00);
+    CHECK(ea, 0x2081);
+    CHECK(clockticks, 6);
+
+    exec_instruction(&cpu, 0x81, 0xff, 0x00);
+    CHECK(ea, 0x2081);
+    CHECK(clockticks, 6);
+
+    exec_instruction(&cpu, 0x81, 0x20, 0x00);
+    CHECK(ea, 0x2081);
+    CHECK(clockticks, 6);
+
+    return 0;
+}
+
 int flags() {
     context_t cpu;
     cpu.pc = 0x200;
@@ -509,7 +544,8 @@ test_t tests[] = {{"interrupts", &interrupt},
                   {"absolute addressing", &absolute},
                   {"absolute,x addressing", &absolute_x},
                   {"absolute,y addressing", &absolute_y},
-                  {"indirect,x addressing", &indirect_y},
+                  {"indirect,y addressing", &indirect_y},
+                  {"indirect,x addressing", &indirect_x},
                   {"decimal mode", decimal_mode},
                   {"flags set & reset", flags},
                   {"binary mode", binary_mode},
