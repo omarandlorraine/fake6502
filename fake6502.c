@@ -1190,7 +1190,7 @@ static opcode_t opcodes[256] = {
     {absy_p, adc, 4},
     {imp, ply, 6},
     {absy, rra, 7},
-    {absxi, jmp, 4},
+    {absxi, jmp, 6},
     {absx_p, adc, 4},
     {absx, ror, 7},
     {absx, rra, 7},
