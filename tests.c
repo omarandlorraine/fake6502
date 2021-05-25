@@ -48,7 +48,7 @@ void exec_instruction(context_t *cpu, uint8_t opcode, uint8_t op1,
     mem_write(cpu, cpu->pc + 1, op1);
     mem_write(cpu, cpu->pc + 2, op2);
 
-	cpu->clockticks = reads = writes = 0;
+    cpu->clockticks = reads = writes = 0;
 
     step(cpu);
 }
@@ -75,7 +75,7 @@ int interrupt() {
     CHECK(s, 0x00fd);
     CHECK(pc, 0x5000);
 
-	CHECKFLAG(FLAG_INTERRUPT, 1);
+    CHECKFLAG(FLAG_INTERRUPT, 1);
 
     // This IRQ shouldn't fire because the interrupts are disabled
     irq6502(&cpu);
@@ -95,14 +95,14 @@ int interrupt() {
     CHECKMEM(0x01fc, 0x00);
     CHECKMEM(0x01fb, cpu.flags & 0xeb);
 
-	CHECKFLAG(FLAG_INTERRUPT, 1);
+    CHECKFLAG(FLAG_INTERRUPT, 1);
 
     // The NMI may fire even when the Interrupt flag is set
     nmi6502(&cpu);
     CHECK(s, 0x00f7);
     CHECK(pc, 0x4000);
 
-	CHECKFLAG(FLAG_INTERRUPT, 1);
+    CHECKFLAG(FLAG_INTERRUPT, 1);
 
     return 0;
 }
@@ -434,13 +434,13 @@ int rra_opcode() {
     cpu.pc = 0x200;
     reads = 0;
     writes = 0;
-	exec_instruction(&cpu, 0x67, 0x01, 0x00);
+    exec_instruction(&cpu, 0x67, 0x01, 0x00);
 
     if (reads != 3)
         return printf("rra zero-page did %d reads instead of 3\n", reads);
     if (writes != 2)
         return printf("rra zero-page did %d writes instead of 2\n", writes);
-	CHECKMEM(0x01, 0x01);
+    CHECKMEM(0x01, 0x01);
 
     CHECK(pc, 0x0202);
     CHECK(ea, 0x0001);
@@ -456,7 +456,7 @@ int sre_opcode() {
     mem_write(&cpu, 0x01, 0x02);
 
     exec_instruction(&cpu, 0x47, 0x01, 0x00); // LSE $01
-	CHECKMEM(0x01, 0x01);
+    CHECKMEM(0x01, 0x01);
 
     CHECK(pc, 0x0202);
     CHECK(ea, 0x0001);
@@ -487,15 +487,15 @@ int cmos_jmp_indirect() {
 }
 
 int cmos_jmp_absxi() {
-	context_t cpu;
-	cpu.pc = 0x0200;
-	cpu.x = 0xff;
-	mem_write(&cpu, 0x1456, 0xcd);
-	mem_write(&cpu, 0x1457, 0xab);
-	exec_instruction(&cpu, 0x7c, 0x57, 0x13);
-	CHECK(pc, 0xabcd);
+    context_t cpu;
+    cpu.pc = 0x0200;
+    cpu.x = 0xff;
+    mem_write(&cpu, 0x1456, 0xcd);
+    mem_write(&cpu, 0x1457, 0xab);
+    exec_instruction(&cpu, 0x7c, 0x57, 0x13);
+    CHECK(pc, 0xabcd);
     CHECK(clockticks, 6);
-	return 0;
+    return 0;
 }
 
 typedef struct {
