@@ -496,6 +496,18 @@ int cmos_jmp_indirect() {
     return 0;
 }
 
+int cmos_jmp_absxi() {
+	context_t cpu;
+	cpu.pc = 0x0200;
+	cpu.x = 0xff;
+	mem_write(&cpu, 0x1456, 0xcd);
+	mem_write(&cpu, 0x1457, 0xab);
+	exec_instruction(&cpu, 0x7c, 0x57, 0x13);
+	CHECK(pc, 0xabcd);
+    CHECK(clockticks, 6);
+	return 0;
+}
+
 typedef struct {
     char *testname;
     int (*fp)();
@@ -521,7 +533,9 @@ test_t nmos_tests[] = {{"indirect addressing", &indirect},
                        {"sre", &sre_opcode},
                        {NULL, NULL}};
 
-test_t cmos_tests[] = {{"CMOS jmp indirect", &cmos_jmp_indirect}, {NULL, NULL}};
+test_t cmos_tests[] = {{"CMOS jmp indirect", &cmos_jmp_indirect},
+                       {"(absolute,x)", &cmos_jmp_absxi},
+                       {NULL, NULL}};
 
 int run_tests(test_t tests[]) {
     for (int i = 0; tests[i].fp; i++) {
