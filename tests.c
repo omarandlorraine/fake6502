@@ -11,6 +11,7 @@
 #define FLAG_BREAK 0x10
 #define FLAG_CONSTANT 0x20
 #define FLAG_OVERFLOW 0x40
+#define FLAG_SIGN 0x80
 
 #define CHECK(var, shouldbe)                                                   \
     if (cpu.var != shouldbe)                                                   \
@@ -489,6 +490,67 @@ int flags() {
     return 0;
 }
 
+int and_opcode() {
+    context_t cpu;
+
+    cpu.a = 0xff;
+    cpu.flags &= 0x00;
+    cpu.pc = 0x200;
+
+    exec_instruction(&cpu, 0x29, 0xe1, 0x00);
+    CHECK(a, 0xe1);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 1);
+    CHECK(pc, 0x0202);
+
+    exec_instruction(&cpu, 0x29, 0x71, 0x00);
+    CHECK(a, 0x61);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+
+    exec_instruction(&cpu, 0x29, 0x82, 0x00);
+    CHECK(a, 0x00);
+    CHECKFLAG(FLAG_ZERO, 1);
+    CHECKFLAG(FLAG_SIGN, 0);
+
+    return 0;
+}
+
+int asl_opcode() {
+    context_t cpu;
+
+    cpu.a = 0x50;
+    cpu.flags &= 0x00;
+    cpu.pc = 0x200;
+
+    exec_instruction(&cpu, 0x0a, 0x00, 0x00);
+    CHECK(a, 0xa0);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 1);
+    CHECKFLAG(FLAG_CARRY, 0);
+    CHECK(pc, 0x0201);
+
+    exec_instruction(&cpu, 0x0a, 0x00, 0x00);
+    CHECK(a, 0x40);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECKFLAG(FLAG_CARRY, 1);
+
+    exec_instruction(&cpu, 0x0a, 0x00, 0x00);
+    CHECK(a, 0x80);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 1);
+    CHECKFLAG(FLAG_CARRY, 0);
+
+    exec_instruction(&cpu, 0x0a, 0x00, 0x00);
+    CHECK(a, 0x00);
+    CHECKFLAG(FLAG_ZERO, 1);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECKFLAG(FLAG_CARRY, 1);
+
+    return 0;
+}
+
 int rra_opcode() {
     context_t cpu;
 
@@ -582,6 +644,8 @@ test_t tests[] = {{"interrupts", &interrupt},
                   {"push & pull", &pushpull},
                   {"rotations", &rotations},
                   {"branches", &branches},
+                  {"and", &and_opcode},
+                  {"asl", &asl_opcode},
                   {NULL, NULL}};
 
 test_t nmos_tests[] = {{"indirect addressing", &indirect},
