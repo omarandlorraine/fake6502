@@ -566,6 +566,33 @@ int asl_opcode() {
     return 0;
 }
 
+int bit_opcode() {
+    context_t cpu;
+
+    cpu.a = 0x50;
+    cpu.flags &= 0x00;
+    cpu.pc = 0x200;
+    mem_write(&cpu, 0xff, 0x80);
+
+    exec_instruction(&cpu, 0x24, 0xff, 0x00);
+    CHECK(a, 0x50);
+    CHECKFLAG(FLAG_ZERO, 1);
+    CHECKFLAG(FLAG_SIGN, 1);
+    CHECKFLAG(FLAG_CARRY, 0);
+    CHECK(pc, 0x0202);
+
+    cpu.a = 0x40;
+    mem_write(&cpu, 0xff, 0x40);
+    exec_instruction(&cpu, 0x2c, 0xff, 0x00);
+    CHECK(a, 0x40);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECKFLAG(FLAG_CARRY, 0);
+    CHECK(pc, 0x0205);
+
+    return 0;
+}
+
 int rra_opcode() {
     context_t cpu;
 
@@ -661,6 +688,7 @@ test_t tests[] = {{"interrupts", &interrupt},
                   {"branches", &branches},
                   {"and", &and_opcode},
                   {"asl", &asl_opcode},
+                  {"bit", &bit_opcode},
                   {NULL, NULL}};
 
 test_t nmos_tests[] = {{"indirect addressing", &indirect},
