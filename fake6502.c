@@ -448,6 +448,13 @@ void bit(context_t *c) {
     c->flags = (c->flags & 0x3F) | (uint8_t)(value & 0xC0);
 }
 
+void bit_imm(context_t *c) {
+    uint8_t value = getvalue(c);
+    uint8_t result = (uint16_t)c->a & value;
+
+    zerocalc(c, result);
+}
+
 void bmi(context_t *c) {
     if ((c->flags & FLAG_SIGN) == FLAG_SIGN)
         bra(c);
@@ -1204,7 +1211,7 @@ static opcode_t opcodes[256] = {
     {zp, stx, 3},
     {zp, sax, 3},
     {imp, dey, 2},
-    {imm, bit, 2},
+    {imm, bit_imm, 2},
     {imp, txa, 2},
     {imm, nop, 2},
     {abso, sty, 4},
