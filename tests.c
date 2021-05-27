@@ -617,6 +617,33 @@ int bit_imm_opcode() {
     return 0;
 }
 
+int brk_opcode() {
+    context_t cpu;
+    reset6502(&cpu);
+
+    cpu.flags = FLAG_ZERO | FLAG_SIGN | FLAG_CARRY | FLAG_OVERFLOW;
+    cpu.pc = 0x200;
+    mem_write(&cpu, 0xfffe, 0x00);
+    mem_write(&cpu, 0xffff, 0x60);
+
+    exec_instruction(&cpu, 0x00, 0x00, 0x00);
+    CHECKFLAG(FLAG_ZERO, 1);
+    CHECKFLAG(FLAG_SIGN, 1);
+    CHECKFLAG(FLAG_CARRY, 1);
+    CHECKFLAG(FLAG_INTERRUPT, 1);
+    CHECKFLAG(FLAG_OVERFLOW, 1);
+
+    CHECK(s, 0x00fa);
+    CHECK(pc, 0x6000);
+
+    CHECKMEM(0x01fd, 0x02);
+    CHECKMEM(0x01fc, 0x02);
+    CHECKMEM(0x01fb, FLAG_ZERO | FLAG_SIGN | FLAG_CARRY | FLAG_OVERFLOW |
+                         FLAG_BREAK | FLAG_CONSTANT);
+
+    return 0;
+}
+
 int rra_opcode() {
     context_t cpu;
 
@@ -713,6 +740,7 @@ test_t tests[] = {{"interrupts", &interrupt},
                   {"and", &and_opcode},
                   {"asl", &asl_opcode},
                   {"bit", &bit_opcode},
+                  {"brk", &brk_opcode},
                   {NULL, NULL}};
 
 test_t nmos_tests[] = {{"indirect addressing", &indirect},
