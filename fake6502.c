@@ -475,7 +475,7 @@ void brk(context_t *c) {
     push16(c, c->pc);                // push next instruction address onto stack
     push8(c, c->flags | FLAG_BREAK); // push CPU flags to stack
     setinterrupt(c);                 // set interrupt flag
-    c->pc = mem_read(c, 0xfffe);
+    c->pc = mem_read16(c, 0xfffe);
 }
 
 void bvc(context_t *c) {
