@@ -259,9 +259,24 @@ int branches() {
     CHECK(pc, 0x02d6);
     exec_instruction(&cpu, 0x90, 0x70, 0x00); // BCC *+$70
     CHECK(pc, 0x0348);
-    exec_instruction(&cpu, 0x70, 0xfa, 0x00); // BVS *-$06
+    exec_instruction(&cpu, 0xb0, 0x70, 0x00); // BCS *+$70
     CHECK(pc, 0x034a);
-    CHECK(ea, 0x0344);
+    exec_instruction(&cpu, 0x70, 0xfa, 0x00); // BVS *-$06
+    CHECK(pc, 0x034c);
+    exec_instruction(&cpu, 0xd0, 0xfa, 0x00); // BNE *-$06
+    CHECK(pc, 0x0348);
+    exec_instruction(&cpu, 0xf0, 0xfa, 0x00); // BEQ *-$06
+    CHECK(pc, 0x034a);
+
+    cpu.flags = FLAG_CARRY | FLAG_ZERO | FLAG_SIGN | FLAG_OVERFLOW;
+    exec_instruction(&cpu, 0xb0, 0x70, 0x00); // BCS *+$70
+    CHECK(pc, 0x03bc);
+    exec_instruction(&cpu, 0xf0, 0xfa, 0x00); // BEQ *-$06
+    CHECK(pc, 0x03b8);
+    exec_instruction(&cpu, 0x30, 0x10, 0x00); // BMI *+$10
+    CHECK(pc, 0x03ca);
+    exec_instruction(&cpu, 0x70, 0xfa, 0x00); // BVS *-$06
+    CHECK(pc, 0x03c6);
     return 0;
 }
 
