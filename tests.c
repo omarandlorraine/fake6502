@@ -280,6 +280,38 @@ int branches() {
     return 0;
 }
 
+int comparisons() {
+	context_t cpu;
+	cpu.flags = 0x00;
+	cpu.pc = 0x0200;
+	cpu.a = 0x50;
+	cpu.x = 0x00;
+	cpu.y = 0xc0;
+
+	exec_instruction(&cpu, 0xc9, 0x00, 0x00);
+	CHECKFLAG(FLAG_CARRY, 1);
+	CHECKFLAG(FLAG_ZERO, 0);
+	CHECKFLAG(FLAG_SIGN, 0);
+
+	exec_instruction(&cpu, 0xc9, 0x51, 0x00);
+	CHECKFLAG(FLAG_CARRY, 0);
+	CHECKFLAG(FLAG_ZERO, 0);
+	CHECKFLAG(FLAG_SIGN, 1);
+
+	exec_instruction(&cpu, 0xe0, 0x00, 0x00);
+	CHECKFLAG(FLAG_CARRY, 1);
+	CHECKFLAG(FLAG_ZERO, 1);
+	CHECKFLAG(FLAG_SIGN, 0);
+
+	exec_instruction(&cpu, 0xc0, 0x01, 0x00);
+	CHECKFLAG(FLAG_CARRY, 1);
+	CHECKFLAG(FLAG_ZERO, 0);
+	CHECKFLAG(FLAG_SIGN, 1);
+
+	return 0;
+
+}
+
 int absolute() {
     context_t cpu;
     cpu.clockticks = 0;
@@ -737,6 +769,7 @@ test_t tests[] = {{"interrupts", &interrupt},
                   {"push & pull", &pushpull},
                   {"rotations", &rotations},
                   {"branches", &branches},
+                  {"comparisons", &comparisons},
                   {"and", &and_opcode},
                   {"asl", &asl_opcode},
                   {"bit", &bit_opcode},
