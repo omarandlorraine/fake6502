@@ -593,6 +593,30 @@ int bit_opcode() {
     return 0;
 }
 
+int bit_imm_opcode() {
+    context_t cpu;
+
+    cpu.a = 0x50;
+    cpu.flags &= 0x00;
+    cpu.pc = 0x200;
+
+    exec_instruction(&cpu, 0x89, 0xff, 0x00);
+    CHECK(a, 0x50);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECKFLAG(FLAG_CARRY, 0);
+    CHECK(pc, 0x0202);
+
+    exec_instruction(&cpu, 0x89, 0x80, 0x00);
+    CHECK(a, 0x50);
+    CHECKFLAG(FLAG_ZERO, 1);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECKFLAG(FLAG_CARRY, 0);
+    CHECK(pc, 0x0204);
+
+    return 0;
+}
+
 int rra_opcode() {
     context_t cpu;
 
@@ -697,6 +721,7 @@ test_t nmos_tests[] = {{"indirect addressing", &indirect},
                        {NULL, NULL}};
 
 test_t cmos_tests[] = {{"CMOS jmp indirect", &cmos_jmp_indirect},
+                       {"Immediate BIT", &bit_imm_opcode},
                        {"(absolute,x)", &cmos_jmp_absxi},
                        {"(zp) addressing", &zpi},
                        {NULL, NULL}};
