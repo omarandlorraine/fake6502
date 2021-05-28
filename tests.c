@@ -247,6 +247,55 @@ int rotations() {
     return 0;
 }
 
+int incdec() {
+    context_t cpu;
+    cpu.x = cpu.y = 0x80;
+
+    mem_write(&cpu, 0x00, 0x00);
+    cpu.flags = 0x00;
+    cpu.pc = 0x0200;
+
+    exec_instruction(&cpu, 0xc6, 0x00, 0x00); // DEC $0
+    CHECK(pc, 0x0202);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 1);
+
+    exec_instruction(&cpu, 0xe6, 0x00, 0x00); // INC $0
+    CHECK(pc, 0x0204);
+    CHECKFLAG(FLAG_ZERO, 1);
+    CHECKFLAG(FLAG_SIGN, 0);
+
+    exec_instruction(&cpu, 0xe8, 0x00, 0x00); // INX
+    CHECK(pc, 0x0205);
+    CHECK(x, 0x81);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 1);
+
+    exec_instruction(&cpu, 0x88, 0x00, 0x00); // DEY
+    CHECK(pc, 0x0206);
+    CHECK(y, 0x7f);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+
+    cpu.x = 0x00;
+    exec_instruction(&cpu, 0xca, 0x00, 0x00); // DEX
+    CHECK(pc, 0x0207);
+    CHECK(y, 0x7f);
+    CHECK(x, 0xff);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 1);
+
+    cpu.y = 0x00;
+    exec_instruction(&cpu, 0xc8, 0x00, 0x00); // INY
+    CHECK(pc, 0x0208);
+    CHECK(y, 0x01);
+    CHECK(x, 0xff);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+
+    return 0;
+}
+
 int branches() {
     context_t cpu;
     cpu.flags = 0x00;
@@ -770,6 +819,7 @@ test_t tests[] = {{"interrupts", &interrupt},
                   {"rotations", &rotations},
                   {"branches", &branches},
                   {"comparisons", &comparisons},
+                  {"increments and decrements", &incdec},
                   {"and", &and_opcode},
                   {"asl", &asl_opcode},
                   {"bit", &bit_opcode},
