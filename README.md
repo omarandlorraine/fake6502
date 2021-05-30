@@ -13,5 +13,5 @@ variant found in some games console). I've taken the liberty of adding a CMOS
 support; this adds a few opcodes here and there). I might get round to adding
 support for other chips in the future.
 
-I've put a test harness around this. Coverage is currently around two thirds,
-and increasing as and when.
+I've put a test harness around this. Coverage is currently at around 90%, which
+includes all of the documented NMOS instructions, and increasing as and when.
