@@ -848,6 +848,122 @@ int ora_opcode() {
     return 0;
 }
 
+int rol_opcode() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.a = 0x20;
+    cpu.flags = 0x00; // Make sure Carry's clear
+
+    exec_instruction(&cpu, 0x2a, 0x00, 0x00); // rol
+    CHECKFLAG(FLAG_CARRY, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECK(a, 0x40);
+
+    exec_instruction(&cpu, 0x2a, 0x00, 0x00); // rol
+    CHECKFLAG(FLAG_CARRY, 0);
+    CHECKFLAG(FLAG_SIGN, 1);
+    CHECK(a, 0x80);
+
+    exec_instruction(&cpu, 0x2a, 0x00, 0x00); // rol
+    CHECKFLAG(FLAG_CARRY, 1);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECK(a, 0x00);
+
+    exec_instruction(&cpu, 0x2a, 0x00, 0x00); // rol
+    CHECKFLAG(FLAG_CARRY, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECK(a, 0x01);
+    return 0;
+}
+
+int rti_opcode() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.a = 0x20;
+    cpu.flags = 0x00;
+    reset6502(&cpu);
+
+    CHECK(s, 0xfd);
+    mem_write(&cpu, 0x1fe, 0x01);
+    mem_write(&cpu, 0x1ff, 0x02);
+    mem_write(&cpu, 0x100, 0x03);
+
+    exec_instruction(&cpu, 0x40, 0x00, 0x00); // rti
+    CHECK(s, 0x00);
+    CHECK(pc, 0x0302);
+    CHECKFLAG(FLAG_CARRY, 1);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_INTERRUPT, 0);
+    CHECKFLAG(FLAG_DECIMAL, 0);
+    CHECKFLAG(FLAG_OVERFLOW, 0);
+
+    return 0;
+}
+
+int sta_opcode() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.a = 0x20;
+    cpu.flags = 0x00;
+    uint8_t address = 0xff;
+
+    mem_write(&cpu, address, 0x03);
+
+    exec_instruction(&cpu, 0x85, address, 0x00); // sta address
+    CHECK(pc, 0x0202);
+    CHECKMEM(address, 0x20);
+
+    return 0;
+}
+
+int stx_opcode() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.x = 0x80;
+    cpu.flags = 0x00;
+    uint8_t address = 0xff;
+
+    mem_write(&cpu, address, 0x03);
+
+    exec_instruction(&cpu, 0x86, address, 0x00); // sta address
+    CHECK(pc, 0x0202);
+    CHECKMEM(address, 0x80);
+
+    return 0;
+}
+
+int sty_opcode() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.y = 0x01;
+    cpu.flags = 0x00;
+    uint8_t address = 0xff;
+
+    mem_write(&cpu, 0xff, 0x03);
+
+    exec_instruction(&cpu, 0x84, address, 0x00); // sta address
+    CHECK(pc, 0x0202);
+    CHECKMEM(address, 0x01);
+
+    return 0;
+}
+
+int stz_opcode() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.flags = 0x00;
+    uint8_t address = 0xff;
+
+    mem_write(&cpu, 0xff, 0x03);
+
+    exec_instruction(&cpu, 0x64, address, 0x00); // stz address
+    CHECK(pc, 0x0202);
+    CHECKMEM(address, 0);
+
+    return 0;
+}
+
 int sre_opcode() {
     context_t cpu;
 
@@ -968,6 +1084,11 @@ test_t tests[] = {{"interrupts", &interrupt},
                   {"jsr & rts", &jsr_opcode},
                   {"nop", &nop_opcode},
                   {"ora", &ora_opcode},
+                  {"rol", &rol_opcode},
+                  {"rti", &rti_opcode},
+                  {"sta", &sta_opcode},
+                  {"stx", &stx_opcode},
+                  {"sty", &sty_opcode},
                   {NULL, NULL}};
 
 test_t nmos_tests[] = {{"indirect addressing", &indirect},
@@ -980,6 +1101,7 @@ test_t cmos_tests[] = {{"CMOS jmp indirect", &cmos_jmp_indirect},
                        {"(absolute,x)", &cmos_jmp_absxi},
                        {"(zp) addressing", &zpi},
                        {"pushes and pulls", &pushme_pullyou},
+                       {"stz", &stz_opcode},
                        {NULL, NULL}};
 
 int run_tests(test_t tests[]) {
