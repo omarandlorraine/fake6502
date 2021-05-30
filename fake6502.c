@@ -266,7 +266,7 @@ static void ind(context_t *c) { // indirect
 
 #ifdef CMOS6502
 static void ind(context_t *c) { // indirect
-    uint16_t eahelp, eahelp2;
+    uint16_t eahelp;
     eahelp = mem_read16(c, c->pc);
     if ((eahelp & 0x00ff) == 0xff)
         c->clockticks++;
