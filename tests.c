@@ -612,7 +612,7 @@ int and_opcode() {
     context_t cpu;
 
     cpu.a = 0xff;
-    cpu.flags &= 0x00;
+    cpu.flags = 0x00;
     cpu.pc = 0x200;
 
     exec_instruction(&cpu, 0x29, 0xe1, 0x00);
@@ -638,7 +638,7 @@ int asl_opcode() {
     context_t cpu;
 
     cpu.a = 0x50;
-    cpu.flags &= 0x00;
+    cpu.flags = 0x00;
     cpu.pc = 0x200;
 
     exec_instruction(&cpu, 0x0a, 0x00, 0x00);
@@ -673,7 +673,7 @@ int bit_opcode() {
     context_t cpu;
 
     cpu.a = 0x50;
-    cpu.flags &= 0x00;
+    cpu.flags = 0x00;
     cpu.pc = 0x200;
     mem_write(&cpu, 0xff, 0x80);
 
@@ -700,7 +700,7 @@ int bit_imm_opcode() {
     context_t cpu;
 
     cpu.a = 0x50;
-    cpu.flags &= 0x00;
+    cpu.flags = 0x00;
     cpu.pc = 0x200;
 
     exec_instruction(&cpu, 0x89, 0xff, 0x00);
@@ -798,7 +798,7 @@ int rra_opcode() {
     context_t cpu;
 
     cpu.a = 0x3;
-    cpu.flags &= 0xf6; // Turn off the carry flag and decimal mode
+    cpu.flags = 0xf6; // Turn off the carry flag and decimal mode
     mem_write(&cpu, 0x01, 0x02);
 
     cpu.pc = 0x200;
