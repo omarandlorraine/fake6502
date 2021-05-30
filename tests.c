@@ -585,6 +585,29 @@ int flags() {
     return 0;
 }
 
+int loads() {
+    context_t cpu;
+    cpu.pc = 0x200;
+
+    exec_instruction(&cpu, 0xa0, 0x00, 0x00); // ldy #$00
+    CHECKFLAG(FLAG_ZERO, 1);
+    CHECKFLAG(FLAG_SIGN, 0);
+
+    exec_instruction(&cpu, 0xa0, 0x80, 0x00); // ldy #$80
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 1);
+
+    exec_instruction(&cpu, 0xa0, 0x7f, 0x00); // ldy #$7f
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+
+    exec_instruction(&cpu, 0xa2, 0x00, 0x00); // ldx #$ff
+    CHECKFLAG(FLAG_ZERO, 1);
+    CHECKFLAG(FLAG_SIGN, 0);
+
+    return 0;
+}
+
 int and_opcode() {
     context_t cpu;
 
@@ -795,6 +818,36 @@ int rra_opcode() {
     return 0;
 }
 
+int nop_opcode() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    exec_instruction(&cpu, 0xea, 0x00, 0x00); // nop
+    return 0;
+}
+
+int ora_opcode() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.a = 0x00;
+    exec_instruction(&cpu, 0x09, 0x00, 0x00); // ora #$00
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECKFLAG(FLAG_ZERO, 1);
+    CHECK(a, 0x00);
+    exec_instruction(&cpu, 0x09, 0x01, 0x00); // ora #$01
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECK(a, 0x01);
+    exec_instruction(&cpu, 0x09, 0x02, 0x00); // ora #$02
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECK(a, 0x03);
+    exec_instruction(&cpu, 0x09, 0x82, 0x00); // ora #$82
+    CHECKFLAG(FLAG_SIGN, 1);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECK(a, 0x83);
+    return 0;
+}
+
 int sre_opcode() {
     context_t cpu;
 
@@ -845,6 +898,46 @@ int cmos_jmp_absxi() {
     return 0;
 }
 
+int pushme_pullyou() {
+    context_t cpu;
+    reset6502(&cpu);
+    cpu.pc = 0x0200;
+    cpu.x = 0xff;
+    cpu.y = 0x01;
+    cpu.a = 0x00;
+    cpu.flags = 0x00;
+    exec_instruction(&cpu, 0xda, 0x0, 0x0); // phx
+    CHECK(s, 0xfc);
+    CHECKMEM(0x1fd, 0xff);
+    exec_instruction(&cpu, 0x5a, 0x0, 0x0); // phy
+    CHECK(s, 0xfb);
+    CHECKMEM(0x1fc, 0x01);
+    exec_instruction(&cpu, 0x48, 0x0, 0x0); // pha
+    CHECK(s, 0xfa);
+    CHECKMEM(0x1fb, 0x00);
+    exec_instruction(&cpu, 0x7a, 0x0, 0x0); // ply
+    CHECK(s, 0xfb);
+    CHECK(y, 0x00);
+    exec_instruction(&cpu, 0x28, 0x0, 0x0); // plp
+    CHECK(s, 0xfc);
+    CHECKFLAG(FLAG_CARRY, 1);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_INTERRUPT, 0);
+    CHECKFLAG(FLAG_DECIMAL, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECKFLAG(FLAG_OVERFLOW, 0);
+    exec_instruction(&cpu, 0x68, 0x0, 0x0); // pla
+    CHECK(s, 0xfd);
+    CHECK(a, 0xff);
+    exec_instruction(&cpu, 0x08, 0x0, 0x0); // php
+    CHECK(s, 0xfc);
+    exec_instruction(&cpu, 0xfa, 0x0, 0x0); // plx
+    CHECK(s, 0xfd);
+    CHECK(x, (FLAG_SIGN | FLAG_CARRY | FLAG_CONSTANT | FLAG_BREAK));
+
+    return 0;
+}
+
 typedef struct {
     char *testname;
     int (*fp)();
@@ -866,12 +959,15 @@ test_t tests[] = {{"interrupts", &interrupt},
                   {"branches", &branches},
                   {"comparisons", &comparisons},
                   {"increments and decrements", &incdec},
+                  {"loads", &loads},
                   {"and", &and_opcode},
                   {"asl", &asl_opcode},
                   {"bit", &bit_opcode},
                   {"brk", &brk_opcode},
                   {"eor", &eor_opcode},
                   {"jsr & rts", &jsr_opcode},
+                  {"nop", &nop_opcode},
+                  {"ora", &ora_opcode},
                   {NULL, NULL}};
 
 test_t nmos_tests[] = {{"indirect addressing", &indirect},
@@ -883,6 +979,7 @@ test_t cmos_tests[] = {{"CMOS jmp indirect", &cmos_jmp_indirect},
                        {"Immediate BIT", &bit_imm_opcode},
                        {"(absolute,x)", &cmos_jmp_absxi},
                        {"(zp) addressing", &zpi},
+                       {"pushes and pulls", &pushme_pullyou},
                        {NULL, NULL}};
 
 int run_tests(test_t tests[]) {
