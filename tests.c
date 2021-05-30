@@ -724,6 +724,27 @@ int brk_opcode() {
     return 0;
 }
 
+int eor_opcode() {
+    context_t cpu;
+    reset6502(&cpu);
+
+    cpu.flags = 0;
+    cpu.pc = 0x200;
+    cpu.a = 0xf0;
+
+    exec_instruction(&cpu, 0x49, 0x43, 0x00);
+    CHECKFLAG(FLAG_SIGN, 1);
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECK(a, 0xb3);
+
+    exec_instruction(&cpu, 0x49, 0xb3, 0x00);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECKFLAG(FLAG_ZERO, 1);
+    CHECK(a, 0x00);
+
+    return 0;
+}
+
 int rra_opcode() {
     context_t cpu;
 
@@ -823,6 +844,7 @@ test_t tests[] = {{"interrupts", &interrupt},
                   {"asl", &asl_opcode},
                   {"bit", &bit_opcode},
                   {"brk", &brk_opcode},
+                  {"eor", &eor_opcode},
                   {NULL, NULL}};
 
 test_t nmos_tests[] = {{"indirect addressing", &indirect},
