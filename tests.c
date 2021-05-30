@@ -943,6 +943,23 @@ int rti_opcode() {
     return 0;
 }
 
+int sax_opcode() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.a = 0x03;
+    cpu.x = 0x06;
+    cpu.flags = 0x00;
+    uint8_t address = 0xff;
+
+    mem_write(&cpu, address, 0x03);
+
+    exec_instruction(&cpu, 0x87, address, 0x00); // sax address
+    CHECK(pc, 0x0202);
+    CHECKMEM(address, 0x02);
+
+    return 0;
+}
+
 int sta_opcode() {
     context_t cpu;
     cpu.pc = 0x200;
@@ -1137,6 +1154,7 @@ test_t tests[] = {{"interrupts", &interrupt},
 test_t nmos_tests[] = {{"indirect addressing", &indirect},
                        {"rra", &rra_opcode},
                        {"sre", &sre_opcode},
+                       {"sax", &sax_opcode},
                        {NULL, NULL}};
 
 test_t cmos_tests[] = {{"CMOS jmp indirect", &cmos_jmp_indirect},
