@@ -745,6 +745,32 @@ int eor_opcode() {
     return 0;
 }
 
+int jsr_opcode() {
+    context_t cpu;
+    reset6502(&cpu);
+
+    cpu.flags = 0;
+    cpu.pc = 0x300;
+
+    exec_instruction(&cpu, 0x20, 0x43, 0x00); // JSR $0043
+    CHECK(pc, 0x0043);
+
+    // check the return address on the stack
+    // (Because RTS increments the PC after fetching it, JSR actually pushes
+    // PC-1, so we need to check that the return address is $0302)
+    CHECK(s, 0xfb);
+    CHECKMEM(0x01fd, 0x03);
+    CHECKMEM(0x01fc, 0x02);
+
+    exec_instruction(&cpu, 0x60, 0x00, 0x00); // RTS
+    CHECK(s, 0xfd);
+    // (RTS increments the return address, so it's $303, the location
+    // immediately after the JSR instruction)
+    CHECK(pc, 0x303);
+
+    return 0;
+}
+
 int rra_opcode() {
     context_t cpu;
 
@@ -845,6 +871,7 @@ test_t tests[] = {{"interrupts", &interrupt},
                   {"bit", &bit_opcode},
                   {"brk", &brk_opcode},
                   {"eor", &eor_opcode},
+                  {"jsr & rts", &jsr_opcode},
                   {NULL, NULL}};
 
 test_t nmos_tests[] = {{"indirect addressing", &indirect},
