@@ -608,6 +608,48 @@ int loads() {
     return 0;
 }
 
+int transfers() {
+    context_t cpu;
+    cpu.pc = 0x200;
+    cpu.flags = 0x00;
+
+    cpu.x = 0x80;
+
+    exec_instruction(&cpu, 0x9a, 0x00, 0x00); // txs
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECK(s, 0x80);
+
+    exec_instruction(&cpu, 0x8a, 0x00, 0x00); // txa
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 1);
+    CHECK(a, 0x80);
+
+    cpu.a = 0x1;
+    exec_instruction(&cpu, 0xaa, 0x00, 0x00); // tax
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECK(x, 0x01);
+
+    exec_instruction(&cpu, 0xba, 0x80, 0x00); // tsx
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 1);
+    CHECK(x, 0x80);
+
+    exec_instruction(&cpu, 0xa8, 0x00, 0x00); // tay
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECK(y, 0x01);
+
+    cpu.a = 0x80;
+    exec_instruction(&cpu, 0x98, 0x00, 0x00); // tya
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+    CHECK(a, 0x01);
+
+    return 0;
+}
+
 int and_opcode() {
     context_t cpu;
 
@@ -1076,6 +1118,7 @@ test_t tests[] = {{"interrupts", &interrupt},
                   {"comparisons", &comparisons},
                   {"increments and decrements", &incdec},
                   {"loads", &loads},
+                  {"transfers", &transfers},
                   {"and", &and_opcode},
                   {"asl", &asl_opcode},
                   {"bit", &bit_opcode},
