@@ -1039,6 +1039,28 @@ int sre_opcode() {
     return 0;
 }
 
+int lax_opcode() {
+    context_t cpu;
+    cpu.pc = 0x200;
+
+    mem_write(&cpu, 0xab, 0x00);
+    exec_instruction(&cpu, 0xa7, 0xab, 0x00); // lax $ab
+    CHECKFLAG(FLAG_ZERO, 1);
+    CHECKFLAG(FLAG_SIGN, 0);
+
+    mem_write(&cpu, 0xab, 0x7b);
+    exec_instruction(&cpu, 0xa7, 0xab, 0x00); // lax $ab
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 0);
+
+    mem_write(&cpu, 0xab, 0x8a);
+    exec_instruction(&cpu, 0xa7, 0xab, 0x00); // lax $ab
+    CHECKFLAG(FLAG_ZERO, 0);
+    CHECKFLAG(FLAG_SIGN, 1);
+
+    return 0;
+}
+
 /*
    See this document:
    http://www.zimmers.net/anonftp/pub/cbm/documents/chipdata/6502-NMOS.extra.opcodes
@@ -1155,6 +1177,7 @@ test_t nmos_tests[] = {{"indirect addressing", &indirect},
                        {"rra", &rra_opcode},
                        {"sre", &sre_opcode},
                        {"sax", &sax_opcode},
+                       {"lax", &lax_opcode},
                        {NULL, NULL}};
 
 test_t cmos_tests[] = {{"CMOS jmp indirect", &cmos_jmp_indirect},
