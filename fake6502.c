@@ -741,13 +741,14 @@ void tya(context_t *c) {
 }
 
 void lax(context_t *c) {
-    lda(c);
-    ldx(c);
+    uint16_t value = getvalue(c);
+    c->x = c->a = (uint8_t)(value & 0x00FF);
+
+    zerocalc(c, c->a);
+    signcalc(c, c->a);
 }
 
-void sax(context_t *c) {
-    putvalue(c, c->a & c->x);
-}
+void sax(context_t *c) { putvalue(c, c->a & c->x); }
 
 void dcp(context_t *c) {
     dec(c);
