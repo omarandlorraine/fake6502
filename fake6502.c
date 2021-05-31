@@ -746,8 +746,6 @@ void lax(context_t *c) {
 }
 
 void sax(context_t *c) {
-    sta(c);
-    stx(c);
     putvalue(c, c->a & c->x);
 }
 
