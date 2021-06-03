@@ -496,7 +496,7 @@ void cli(context_t *c) { clearinterrupt(c); }
 
 void clv(context_t *c) { clearoverflow(c); }
 
-void compare(context_t *c, uint16_t r) {
+static void compare(context_t *c, uint16_t r) {
     uint16_t value = getvalue(c);
     uint16_t result = r - value;
 
