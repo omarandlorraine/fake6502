@@ -12,6 +12,11 @@ typedef struct c1 {
     uint8_t opcode;
 } context_t;
 
+void push6502_8(context_t *c, uint8_t pushval);
+void push6502_16(context_t *c, uint16_t pushval);
+uint8_t pull6502_8(context_t *c);
+uint16_t pull6502_16(context_t *c);
+
 void step(context_t * c);
 void reset6502(context_t * c);
 void irq6502(context_t * c);
