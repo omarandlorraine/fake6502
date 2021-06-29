@@ -836,6 +836,30 @@ int jsr_opcode() {
     return 0;
 }
 
+int rla_opcode() {
+    context_t cpu;
+
+    cpu.a = 0x23;
+    cpu.flags = 0xf6; // Turn off the carry flag and decimal mode
+    mem_write(&cpu, 0x01, 0x12);
+
+    cpu.pc = 0x200;
+    reads = 0;
+    writes = 0;
+    exec_instruction(&cpu, 0x27, 0x01, 0x00);
+
+    if (reads != 3)
+        return printf("rla zero-page did %d reads instead of 3\n", reads);
+    if (writes != 2)
+        return printf("rla zero-page did %d writes instead of 2\n", writes);
+    CHECKMEM(0x01, 0x24);
+
+    CHECK(pc, 0x0202);
+    CHECK(ea, 0x0001);
+    CHECK(a, 0x20);
+    return 0;
+}
+
 int rra_opcode() {
     context_t cpu;
 
@@ -1175,6 +1199,7 @@ test_t tests[] = {{"interrupts", &interrupt},
 
 test_t nmos_tests[] = {{"indirect addressing", &indirect},
                        {"rra", &rra_opcode},
+                       {"rla", &rla_opcode},
                        {"sre", &sre_opcode},
                        {"sax", &sax_opcode},
                        {"lax", &lax_opcode},

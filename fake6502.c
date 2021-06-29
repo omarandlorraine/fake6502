@@ -368,6 +368,16 @@ uint8_t rotate_right(context_t *c, uint16_t value) {
     return result;
 }
 
+uint8_t rotate_left(context_t *c, uint16_t value) {
+    uint16_t result = (value << 1) | (c->flags & FLAG_CARRY);
+
+    carrycalc(c, result);
+    zerocalc(c, result);
+    signcalc(c, result);
+
+    return result;
+}
+
 uint8_t logical_shift_right(context_t *c, uint8_t value) {
     uint16_t result = value >> 1;
     if (value & 1)
@@ -389,6 +399,14 @@ uint8_t exclusive_or(context_t *c, uint8_t a, uint8_t b) {
     return result;
 }
 
+uint8_t boolean_and(context_t *c, uint8_t a, uint8_t b) {
+    uint16_t result = (uint16_t)a & b;
+
+    zerocalc(c, result);
+    signcalc(c, result);
+    return result;
+}
+
 // instruction handler functions
 void adc(context_t *c) {
     uint16_t value = getvalue(c);
@@ -397,12 +415,7 @@ void adc(context_t *c) {
 
 void and (context_t * c) {
     uint8_t m = getvalue(c);
-    uint16_t result = (uint16_t)c->a & m;
-
-    zerocalc(c, result);
-    signcalc(c, result);
-
-    saveaccum(c, result);
+    saveaccum(c, boolean_and(c, c->a, m));
 }
 
 void asl(context_t *c) {
@@ -623,13 +636,9 @@ void plp(context_t *c) { c->flags = pull8(c) | FLAG_CONSTANT | FLAG_BREAK; }
 
 void rol(context_t *c) {
     uint16_t value = getvalue(c);
-    uint16_t result = (value << 1) | (c->flags & FLAG_CARRY);
 
-    carrycalc(c, result);
-    zerocalc(c, result);
-    signcalc(c, result);
-
-    putvalue(c, result);
+    putvalue(c, value);
+    putvalue(c, rotate_left(c, value));
 }
 
 void ror(context_t *c) {
@@ -766,8 +775,11 @@ void slo(context_t *c) {
 }
 
 void rla(context_t *c) {
-    rol(c);
-    and(c);
+    uint16_t value = getvalue(c);
+    uint16_t result = rotate_left(c, value);
+    putvalue(c, value);
+    putvalue(c, result);
+    saveaccum(c, boolean_and(c, c->a, result));
 }
 
 void sre(context_t *c) {
