@@ -131,21 +131,21 @@ typedef struct {
 static opcode_t opcodes[256];
 
 // a few general functions used by various other functions
-void push8(context_t *c, uint8_t pushval) {
+void push6502_8(context_t *c, uint8_t pushval) {
     mem_write(c, BASE_STACK + c->s--, pushval);
 }
 
-void push16(context_t *c, uint16_t pushval) {
-    push8(c, (pushval >> 8) & 0xFF);
-    push8(c, pushval & 0xFF);
+void push6502_16(context_t *c, uint16_t pushval) {
+    push6502_8(c, (pushval >> 8) & 0xFF);
+    push6502_8(c, pushval & 0xFF);
 }
 
-uint8_t pull8(context_t *c) { return (mem_read(c, BASE_STACK + ++c->s)); }
+uint8_t pull6502_8(context_t *c) { return (mem_read(c, BASE_STACK + ++c->s)); }
 
-uint16_t pull16(context_t *c) {
+uint16_t pull6502_16(context_t *c) {
     uint8_t t;
-    t = pull8(c);
-    return pull8(c) << 8 | t;
+    t = pull6502_8(c);
+    return pull6502_8(c) << 8 | t;
 }
 
 uint16_t mem_read16(context_t *c, uint16_t addr) {
@@ -485,8 +485,8 @@ void bpl(context_t *c) {
 
 void brk(context_t *c) {
     c->pc++;
-    push16(c, c->pc);                // push next instruction address onto stack
-    push8(c, c->flags | FLAG_BREAK); // push CPU flags to stack
+    push6502_16(c, c->pc);                // push next instruction address onto stack
+    push6502_8(c, c->flags | FLAG_BREAK); // push CPU flags to stack
     setinterrupt(c);                 // set interrupt flag
     c->pc = mem_read16(c, 0xfffe);
 }
@@ -561,7 +561,7 @@ void iny(context_t *c) { c->y = increment(c, c->y); }
 void jmp(context_t *c) { c->pc = c->ea; }
 
 void jsr(context_t *c) {
-    push16(c, c->pc - 1);
+    push6502_16(c, c->pc - 1);
     c->pc = c->ea;
 }
 
@@ -603,36 +603,36 @@ void ora(context_t *c) {
     saveaccum(c, result);
 }
 
-void pha(context_t *c) { push8(c, c->a); }
+void pha(context_t *c) { push6502_8(c, c->a); }
 
-void phx(context_t *c) { push8(c, c->x); }
+void phx(context_t *c) { push6502_8(c, c->x); }
 
-void phy(context_t *c) { push8(c, c->y); }
+void phy(context_t *c) { push6502_8(c, c->y); }
 
-void php(context_t *c) { push8(c, c->flags | FLAG_BREAK); }
+void php(context_t *c) { push6502_8(c, c->flags | FLAG_BREAK); }
 
 void pla(context_t *c) {
-    c->a = pull8(c);
+    c->a = pull6502_8(c);
 
     zerocalc(c, c->a);
     signcalc(c, c->a);
 }
 
 void plx(context_t *c) {
-    c->x = pull8(c);
+    c->x = pull6502_8(c);
 
     zerocalc(c, c->x);
     signcalc(c, c->x);
 }
 
 void ply(context_t *c) {
-    c->y = pull8(c);
+    c->y = pull6502_8(c);
 
     zerocalc(c, c->y);
     signcalc(c, c->y);
 }
 
-void plp(context_t *c) { c->flags = pull8(c) | FLAG_CONSTANT | FLAG_BREAK; }
+void plp(context_t *c) { c->flags = pull6502_8(c) | FLAG_CONSTANT | FLAG_BREAK; }
 
 void rol(context_t *c) {
     uint16_t value = getvalue(c);
@@ -649,11 +649,11 @@ void ror(context_t *c) {
 }
 
 void rti(context_t *c) {
-    c->flags = pull8(c) | FLAG_CONSTANT | FLAG_BREAK;
-    c->pc = pull16(c);
+    c->flags = pull6502_8(c) | FLAG_CONSTANT | FLAG_BREAK;
+    c->pc = pull6502_16(c);
 }
 
-void rts(context_t *c) { c->pc = pull16(c) + 1; }
+void rts(context_t *c) { c->pc = pull6502_16(c) + 1; }
 
 void sbc(context_t *c) {
     uint16_t value = getvalue(c);
@@ -1351,16 +1351,16 @@ static opcode_t opcodes[256] = {
 #endif
 
 void nmi6502(context_t *c) {
-    push16(c, c->pc);
-    push8(c, c->flags & ~FLAG_BREAK);
+    push6502_16(c, c->pc);
+    push6502_8(c, c->flags & ~FLAG_BREAK);
     c->flags |= FLAG_INTERRUPT;
     c->pc = mem_read16(c, 0xfffa);
 }
 
 void irq6502(context_t *c) {
     if ((c->flags & FLAG_INTERRUPT) == 0) {
-        push16(c, c->pc);
-        push8(c, c->flags & ~FLAG_BREAK);
+        push6502_16(c, c->pc);
+        push6502_8(c, c->flags & ~FLAG_BREAK);
         c->flags |= FLAG_INTERRUPT;
         c->pc = mem_read16(c, 0xfffe);
     }
