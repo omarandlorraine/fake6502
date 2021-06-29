@@ -390,6 +390,15 @@ uint8_t logical_shift_right(context_t *c, uint8_t value) {
     return result;
 }
 
+uint8_t arithmetic_shift_left(context_t *c, uint8_t value) {
+    uint16_t result = value << 1;
+
+    carrycalc(c, result);
+    zerocalc(c, result);
+    signcalc(c, result);
+    return result;
+}
+
 uint8_t exclusive_or(context_t *c, uint8_t a, uint8_t b) {
     uint16_t result = a ^ b;
 
@@ -418,16 +427,7 @@ void and (context_t * c) {
     saveaccum(c, boolean_and(c, c->a, m));
 }
 
-void asl(context_t *c) {
-    uint8_t m = getvalue(c);
-    uint16_t result = m << 1;
-
-    carrycalc(c, result);
-    zerocalc(c, result);
-    signcalc(c, result);
-
-    putvalue(c, result);
-}
+void asl(context_t *c) { putvalue(c, arithmetic_shift_left(c, getvalue(c))); }
 
 void bra(context_t *c) {
     uint16_t oldpc = c->pc;
