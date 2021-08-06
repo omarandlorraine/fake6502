@@ -29,6 +29,14 @@
             "line %d: " #flag " should be %sset but isn't, [ %02x, %02x] \n",  \
             __LINE__, shouldbe ? "" : "re", (cpu.flags & flag), shouldbe);
 
+#define CHECKCYCLES(r, w)                                                      \
+    if (reads != r)                                                            \
+        return printf("line %d: %d reads instead of %d\n", __LINE__, reads,    \
+                      r);                                                      \
+    if (writes != w)                                                           \
+        return printf("line %d: %d writes instead of %d\n", __LINE__, writes,  \
+                      w);
+
 uint8_t mem[65536];
 
 int reads, writes;
@@ -165,10 +173,13 @@ int decimal_mode() {
 
     exec_instruction(&cpu, 0xe9, 0x01, 0x00); // SBC #$01
     CHECK(pc, 0x207);
-    CHECK(a, 0x99);
+    CHECK(a, 0x98);
+
+    exec_instruction(&cpu, 0x38, 0x00, 0x00); // SEC
+    CHECK(pc, 0x208);
 
     exec_instruction(&cpu, 0xe9, 0x10, 0x00); // SBC #$10
-    CHECK(pc, 0x209);
+    CHECK(pc, 0x20a);
     CHECK(a, 0x88);
 
     return 0;
@@ -194,11 +205,14 @@ int binary_mode() {
 
     exec_instruction(&cpu, 0xe9, 0x01, 0x00); // SBC #$01
     CHECK(pc, 0x207);
-    CHECK(a, 0x9d);
+    CHECK(a, 0x9c);
+
+    exec_instruction(&cpu, 0x38, 0x00, 0x00); // SEC
+    CHECK(pc, 0x208);
 
     exec_instruction(&cpu, 0xe9, 0x10, 0x00); // SBC #$10
-    CHECK(pc, 0x209);
-    CHECK(a, 0x8d);
+    CHECK(pc, 0x20a);
+    CHECK(a, 0x8c);
 
     return 0;
 }
@@ -848,10 +862,7 @@ int rla_opcode() {
     writes = 0;
     exec_instruction(&cpu, 0x27, 0x01, 0x00);
 
-    if (reads != 3)
-        return printf("rla zero-page did %d reads instead of 3\n", reads);
-    if (writes != 2)
-        return printf("rla zero-page did %d writes instead of 2\n", writes);
+    CHECKCYCLES(3, 2);
     CHECKMEM(0x01, 0x24);
 
     CHECK(pc, 0x0202);
@@ -872,10 +883,7 @@ int rra_opcode() {
     writes = 0;
     exec_instruction(&cpu, 0x67, 0x01, 0x00);
 
-    if (reads != 3)
-        return printf("rra zero-page did %d reads instead of 3\n", reads);
-    if (writes != 2)
-        return printf("rra zero-page did %d writes instead of 2\n", writes);
+    CHECKCYCLES(3, 2);
     CHECKMEM(0x01, 0x01);
 
     CHECK(pc, 0x0202);

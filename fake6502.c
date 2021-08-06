@@ -658,7 +658,7 @@ void rts(context_t *c) { c->pc = pull6502_16(c) + 1; }
 void sbc(context_t *c) {
     uint16_t value = getvalue(c);
     uint16_t result =
-        (uint16_t)c->a - value - ((c->flags & FLAG_CARRY) ? 1 : 0);
+        (uint16_t)c->a - value - ((c->flags & FLAG_CARRY) ? 0 : 1);
 
     carrycalc(c, result);
     zerocalc(c, result);
