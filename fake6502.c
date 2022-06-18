@@ -1,68 +1,159 @@
-/* Fake6502 CPU emulator core v1.1 *******************
- * (c)2011 Mike Chambers (miker00lz@gmail.com)       *
- *****************************************************
- * v1.1 - Small bugfix in BIT opcode, but it was the *
- *        difference between a few games in my NES   *
- *        emulator working and being broken!         *
- *        I went through the rest carefully again    *
- *        after fixing it just to make sure I didn't *
- *        have any other typos! (Dec. 17, 2011)      *
- *                                                   *
- * v1.0 - First release (Nov. 24, 2011)              *
- *****************************************************
- * LICENSE: This source code is released into the    *
- * public domain, but if you use it please do give   *
- * credit. I put a lot of effort into writing this!  *
- *                                                   *
- *****************************************************
- *                                                   *
- * If you do discover an error in timing accuracy,   *
- * or operation in general please e-mail me at the   *
- * address above so that I can fix it. Thank you!    *
- *                                                   *
- *****************************************************
- * Usage:                                            *
- *                                                   *
- * Fake6502 requires you to provide two external     *
- * functions:                                        *
- *                                                   *
- * uint8_t mem_read(uint16_t address)                *
- * void mem_write(uint16_t address, uint8_t value)   *
- *                                                   *
- *****************************************************
- * Useful functions in this emulator:                *
- *                                                   *
- * void reset6502()                                  *
- *   - Call this once before you begin execution.    *
- *                                                   *
- * void step6502()                                   *
- *   - Execute a single instrution.                  *
- *                                                   *
- * void irq6502()                                    *
- *   - Trigger a hardware IRQ in the 6502 core.      *
- *                                                   *
- * void nmi6502()                                    *
- *   - Trigger an NMI in the 6502 core.              *
- *                                                   *
- *****************************************************/
+/*!
+\file
+\anchor file_fake6502_c
+
+\section f6502_about About
+
+Fake6502 is a 6502 emulator writen in ANSI C.
+It was originally created by :-
+
+(c) 2011 Mike Chambers (miker00lz@gmail.com) <br/>
+Fake6502 CPU emulator core <br/>
+
+v1.1 <br/>
+Dec. 17, 2011 <br/>
+Small bugfix in BIT opcode, but it was the difference between
+a few games in my NES emulator working and being broken!
+I went through the rest carefully again after fixing it
+just to make sure I didn't have any other typos!
+
+v1.0 <br/>
+Nov. 24, 2011 <br/>
+First release.
+
+This source code is released into the
+public domain, but if you use it please do give
+credit. I put a lot of effort into writing this!
+
+If you do discover an error in timing accuracy,
+or operation in general please e-mail me at the
+address above so that I can fix it. Thank you!
+
+<hr width=50%>
+
+In Dec 2020, this folk was created by 'omarandlorraine':
+
+https://github.com/omarandlorraine/fake6502
+
+- - -
+
+\section f6502_version Version History
+
+v2.1 <br/>
+18 Jun 2022 <br/>
+Source code tidy up, for better inclusion as a source code library.
+
+v2.0 <br/>
+14 Dec 2020 <br/>
+First folk of project by
+<a href='https://github.com/omarandlorraine'> omarandlorraine</a>.
+
+- - -
+
+\section f6502_license License
+
+GNU General Public License v2.0.
+
+- - -
+
+\section f6502_building Building this emulator
+
+Fake6502 requires you to provide two external functions:
+
+
+uint8_t mem_read(uint16_t address)
+
+void mem_write(uint16_t address, uint8_t value)
+
+
+There are a couple of compile-time flags:
+
+NES_CPU <br/>
+when this is defined, the binary-coded decimal (BCD) status flag is not
+honored by ADC and SBC. The 2A03 CPU in the Nintendo Entertainment System
+does not support BCD operation.
+
+
+NMOS6502 or CMOS6502 <br/>
+define one or other of these. This will configure the emulator to emulate
+either the NMOS or CMOS variants (CMOS adds bugfixes and several
+instructions)
+
+- - -
+
+\section f6502_usage Using this emulator
+
+There are only a few functions you need to call, to use this emulator.
+
+\code{.unparsed}
+void reset6502()
+\endcode
+
+Call this once before you begin execution, to initialise the code.
+
+\code{.unparsed}
+void step6502()
+\endcode
+
+Execute the next (single) instrution.
+
+\code{.unparsed}
+void irq6502()
+\endcode
+
+Trigger an IRQ in the 6502 core.
+
+\code{.unparsed}
+void nmi6502()
+\endcode
+
+Trigger an NMI in the 6502 core.
+
+- - -
+
+\section f6502_design Design of this emulator
+
+The execution of a 6502 instruction is split into 2 parts/tasks :-
+
+  - the addressing mode and resulting address to be used
+
+  - the opperation to be performed
+
+Each instance of these tasks are implemented in seperate functions,
+and accessed via a table of function pointers,
+indexed by the 6502 instruction opcode to be executed.
+
+The memory accessing of the 6502 core (for all instructions
+and data) is provided by the host code, via the functions
+mem_read() and mem_write().
+
+It is up to the host code to map the address provided,
+into it's own 64K memory space.
+
+The fn()'s: reset6502(), irq6502() and nmi6502(), all use the
+6502 defined vector addresses (0xfffa/b, 0xffc/d and 0xffe/f),
+to setup the PC for execution,
+ie. at the next call to step6502().
+
+- - -
+
+*/
 
 #include "fake6502.h"
+
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
-/* #define NES_CPU
- * when this is defined, the binary-coded decimal (BCD) status flag is not
- * honored by ADC and SBC. the 2A03 CPU in the Nintendo Entertainment System
- * does not support BCD operation.
- */
+#if 0
+#define NES_CPU
+#endif
 
-/* #define NMOS6502
- * #define CMOS6502
- * define one or other of these. This will configure the emulator to emulate
- * either the NMOS or CMOS variants (CMOS adds bugfixes and several
- * instructions)
- */
+#if 0
+#define NMOS6502
+#else
+#define CMOS6502
+#endif
 
 #define FLAG_CARRY 0x01
 #define FLAG_ZERO 0x02
@@ -152,21 +243,6 @@ uint16_t mem_read16(context_t *c, uint16_t addr) {
     // Read two consecutive bytes from memory
     return ((uint16_t)mem_read(c, addr) |
             ((uint16_t)mem_read(c, addr + 1) << 8));
-}
-
-void reset6502(context_t *c) {
-    // The 6502 normally does some fake reads after reset because
-    // reset is a hacked-up version of NMI/IRQ/BRK
-    // See https://www.pagetable.com/?p=410
-    mem_read(c, 0x00ff);
-    mem_read(c, 0x00ff);
-    mem_read(c, 0x00ff);
-    mem_read(c, 0x0100);
-    mem_read(c, 0x01ff);
-    mem_read(c, 0x01fe);
-    c->pc = mem_read16(c, 0xfffc);
-    c->s = 0xfd;
-    c->flags |= FLAG_CONSTANT | FLAG_INTERRUPT;
 }
 
 // addressing mode functions, calculates effective addresses
@@ -1350,6 +1426,24 @@ static opcode_t opcodes[256] = {
     {absx, isb, 7}};
 #endif
 
+
+// the main functions, for use by the host project
+
+void reset6502(context_t *c) {
+    // The 6502 normally does some fake reads after reset because
+    // reset is a hacked-up version of NMI/IRQ/BRK
+    // See https://www.pagetable.com/?p=410
+    mem_read(c, 0x00ff);
+    mem_read(c, 0x00ff);
+    mem_read(c, 0x00ff);
+    mem_read(c, 0x0100);
+    mem_read(c, 0x01ff);
+    mem_read(c, 0x01fe);
+    c->pc = mem_read16(c, 0xfffc);
+    c->s = 0xfd;
+    c->flags |= FLAG_CONSTANT | FLAG_INTERRUPT;
+}
+
 void nmi6502(context_t *c) {
     push6502_16(c, c->pc);
     push6502_8(c, c->flags & ~FLAG_BREAK);
@@ -1366,7 +1460,7 @@ void irq6502(context_t *c) {
     }
 }
 
-void step(context_t *c) {
+void step6502(context_t *c) {
     uint8_t opcode = mem_read(c, c->pc++);
     c->opcode = opcode;
     c->flags |= FLAG_CONSTANT;
