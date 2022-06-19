@@ -31,7 +31,7 @@ address above so that I can fix it. Thank you!
 
 <hr width=50%>
 
-In Dec 2020, this folk was created by 'omarandlorraine':
+In Dec 2020, this fork was created by 'omarandlorraine':
 
 https://github.com/omarandlorraine/fake6502
 
@@ -45,7 +45,7 @@ Source code tidy up, for better inclusion as a source code library.
 
 v2.0 <br/>
 14 Dec 2020 <br/>
-First folk of project by
+First fork of project by
 <a href='https://github.com/omarandlorraine'> omarandlorraine</a>.
 
 - - -
@@ -151,7 +151,6 @@ ie. at the next call to step6502().
 
 #if 0
 #define NMOS6502
-#else
 #define CMOS6502
 #endif
 

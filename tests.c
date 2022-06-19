@@ -59,7 +59,7 @@ void exec_instruction(context_t *cpu, uint8_t opcode, uint8_t op1,
 
     cpu->clockticks = reads = writes = 0;
 
-    step(cpu);
+    step6502(cpu);
 }
 
 int interrupt() {
