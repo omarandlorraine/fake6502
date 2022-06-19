@@ -1,4 +1,14 @@
+
+#ifndef FAKE6502_H
+#define FAKE6502_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #include <stdint.h>
+
 typedef struct c1 {
     uint8_t a;
     uint8_t x;
@@ -17,10 +27,17 @@ void push6502_16(context_t *c, uint16_t pushval);
 uint8_t pull6502_8(context_t *c);
 uint16_t pull6502_16(context_t *c);
 
-void step(context_t * c);
 void reset6502(context_t * c);
 void irq6502(context_t * c);
 void nmi6502(context_t * c);
+void step6502(context_t * c);
+
 uint8_t mem_read(context_t * c, uint16_t address);
 void mem_write(context_t * c, uint16_t address, uint8_t val);
 
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
