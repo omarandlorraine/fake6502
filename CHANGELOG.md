@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
-## [2.2.0] - 21-06-2022
+## [2.2.0] - 22-06-2022
 
 Updated the documentation, created this CHANGELOG.md file.
 
@@ -18,25 +18,25 @@ Updated the documentation, created this CHANGELOG.md file.
 
  - sectioning comments/dividers for .c and .h files
 
+ - checks for invalid options settings/combinations
+
  - DECIMALMODE documentation
 
 
 ### Changed
 
- - void step(context_t *c) -> step6502(context_t *c)
-
- - created structs: context_6502_cpu, context_6502_emu
+ - created structs: state_6502_cpu, state_6502_emu
 
  - renamed struct: context_t -> context_6502
 
- - mem[65536] -> void *host_state,
+ - mem[65536] -> void *state_host,
 for the host code to have it's own data struct/state area
 
  - renamed struct: opcode_t -> opcode_6502
 
- - move defines/macros into header file
+ - move defines/macros into the header file
 
- - removed 'static' from some fns,
+ - removed `static` from some fns,
 so the host code can use them to extend the library
 
 
@@ -428,7 +428,7 @@ just to make sure I didn't have any other typos!
 
 ## [1.0.0] - 24-11-2011
 
-Fake6502 was originally created by :-
+Fake6502 was originally created by:
 
 (c) 2011 Mike Chambers (miker00lz@gmail.com) <br/>
 Fake6502 CPU emulator core

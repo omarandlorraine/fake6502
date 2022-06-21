@@ -7,13 +7,30 @@
 
 Fake6502 is a 6502 emulator writen in ANSI C.
 
-https://github.com/omarandlorraine/fake6502
+It was originally created by:
+
+(c) 2011 Mike Chambers (miker00lz@gmail.com) <br/>
+Fake6502 CPU emulator core
+
+
+In 2020, this fork was created:
+
+<a href='https://github.com/omarandlorraine/fake6502'>https://github.com/omarandlorraine/fake6502</a>
+
+
+See: <a href='./CHANGELOG.md'>CHANGELOG.md</a>
+
+- - -
+
+\section f6502_version Version
+
+v2.2.0 - 22-06-2022
 
 - - -
 
 \section f6502_license License
 
-GNU General Public License v2.0.
+<a href='./LICENSE'>GNU General Public License v2.0</a>
 
 - - -
 
@@ -21,19 +38,21 @@ GNU General Public License v2.0.
 
 Fake6502 requires you to provide two external functions:
 
-
 uint8_t mem_read(uint16_t address)
 
 void mem_write(uint16_t address, uint8_t value)
 
 
-There are a couple of compile-time flags:
+There are a couple of compile-time options:
 
  - NES_CPU
 
 when this is defined, the binary-coded decimal (BCD) status flag is not
 honored by ADC and SBC. The 2A03 CPU in the Nintendo Entertainment System
 does not support BCD operation.
+
+See:
+<a href='https://www.nesdev.com/2A03%20technical%20reference.txt'>2A03 technical reference</a>
 
 
  - NMOS6502 or CMOS6502
@@ -96,10 +115,13 @@ and data) is provided by the host code, via the functions
 mem_read() and mem_write().
 
 It is up to the host code to map the address provided,
-into it's own 64K memory space.
+into it's own 64K memory space. The host code has the use of
+`void *state_host` in the `context_6502` struct, to pass its
+own data structure through to the memory accessing functions.
 
-The fn()'s: reset6502(), irq6502() and nmi6502(), all use the
-6502 defined vector addresses (0xfffa/b, 0xffc/d and 0xffe/f),
+The fn()'s: `reset6502()`, `irq6502()` and `nmi6502()`,
+all use the 6502 defined vector addresses at the top of memory
+(0xfffa/b, 0xffc/d and 0xffe/f),
 to setup the PC for execution,
 ie. at the next call to step6502().
 
@@ -125,10 +147,14 @@ OPTION's
 
 // check the build options
 
-#if 0
-#define NES_CPU
+#if defined(NES_CPU) && !defined(NMOS6502)
+#error can not have NES_CPU without NMOS6502
 #endif
 
+
+#if defined(NES_CPU) && defined(DECIMALMODE)
+#error can not have NES_CPU and DECIMALMODE
+#endif
 
 
 #if !defined(NMOS6502) && !defined(CMOS6502)
@@ -137,7 +163,7 @@ OPTION's
 
 
 #if defined(NMOS6502) && defined(CMOS6502)
-#error both NMOS6502 and CMOS6502 are defined
+#error can not have both NMOS6502 and CMOS6502 defined
 #endif
 
 
@@ -476,7 +502,7 @@ void adc(context_6502 *c) {
     saveaccum(c, add8(c, c->cpu.a, value, c->cpu.flags & FLAG_CARRY));
 }
 
-void and(context_6502 * c) {
+void and(context_6502 *c) {
     uint8_t m = getvalue(c);
     saveaccum(c, boolean_and(c, c->cpu.a, m));
 }
