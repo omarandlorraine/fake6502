@@ -1,3 +1,4 @@
+
 /*!
 \file
 \anchor file_fake6502_c
@@ -5,48 +6,8 @@
 \section f6502_about About
 
 Fake6502 is a 6502 emulator writen in ANSI C.
-It was originally created by :-
-
-(c) 2011 Mike Chambers (miker00lz@gmail.com) <br/>
-Fake6502 CPU emulator core <br/>
-
-v1.1 <br/>
-Dec. 17, 2011 <br/>
-Small bugfix in BIT opcode, but it was the difference between
-a few games in my NES emulator working and being broken!
-I went through the rest carefully again after fixing it
-just to make sure I didn't have any other typos!
-
-v1.0 <br/>
-Nov. 24, 2011 <br/>
-First release.
-
-This source code is released into the
-public domain, but if you use it please do give
-credit. I put a lot of effort into writing this!
-
-If you do discover an error in timing accuracy,
-or operation in general please e-mail me at the
-address above so that I can fix it. Thank you!
-
-<hr width=50%>
-
-In Dec 2020, this fork was created by 'omarandlorraine':
 
 https://github.com/omarandlorraine/fake6502
-
-- - -
-
-\section f6502_version Version History
-
-v2.1 <br/>
-18 Jun 2022 <br/>
-Source code tidy up, for better inclusion as a source code library.
-
-v2.0 <br/>
-14 Dec 2020 <br/>
-First fork of project by
-<a href='https://github.com/omarandlorraine'> omarandlorraine</a>.
 
 - - -
 
@@ -68,16 +29,23 @@ void mem_write(uint16_t address, uint8_t value)
 
 There are a couple of compile-time flags:
 
-NES_CPU <br/>
+ - NES_CPU
+
 when this is defined, the binary-coded decimal (BCD) status flag is not
 honored by ADC and SBC. The 2A03 CPU in the Nintendo Entertainment System
 does not support BCD operation.
 
 
-NMOS6502 or CMOS6502 <br/>
+ - NMOS6502 or CMOS6502
+
 define one or other of these. This will configure the emulator to emulate
 either the NMOS or CMOS variants (CMOS adds bugfixes and several
 instructions)
+
+
+- DECIMALMODE
+
+when this is defined, BCD mode is implemented (in adc and rra).
 
 - - -
 
@@ -139,272 +107,250 @@ ie. at the next call to step6502().
 
 */
 
+
+/*********************************************************************
+INCLUDE's
+*********************************************************************/
+
 #include "fake6502.h"
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
+
+/*********************************************************************
+OPTION's
+*********************************************************************/
+
+// check the build options
+
 #if 0
 #define NES_CPU
 #endif
 
-#if 0
-#define NMOS6502
-#define CMOS6502
+
+
+#if !defined(NMOS6502) && !defined(CMOS6502)
+#error one of NMOS6502 or CMOS6502 must be defined
 #endif
 
-#define FLAG_CARRY 0x01
-#define FLAG_ZERO 0x02
-#define FLAG_INTERRUPT 0x04
-#define FLAG_DECIMAL 0x08
-#define FLAG_BREAK 0x10
-#define FLAG_CONSTANT 0x20
-#define FLAG_OVERFLOW 0x40
-#define FLAG_SIGN 0x80
 
-#define BASE_STACK 0x100
+#if defined(NMOS6502) && defined(CMOS6502)
+#error both NMOS6502 and CMOS6502 are defined
+#endif
 
-// flag modifier macros
-#define setcarry(c) c->flags |= FLAG_CARRY
-#define clearcarry(c) c->flags &= (~FLAG_CARRY)
-#define setzero(c) c->flags |= FLAG_ZERO
-#define clearzero(c) c->flags &= (~FLAG_ZERO)
-#define setinterrupt(c) c->flags |= FLAG_INTERRUPT
-#define clearinterrupt(c) c->flags &= (~FLAG_INTERRUPT)
-#define setdecimal(c) c->flags |= FLAG_DECIMAL
-#define cleardecimal(c) c->flags &= (~FLAG_DECIMAL)
-#define setoverflow(c) c->flags |= FLAG_OVERFLOW
-#define clearoverflow(c) c->flags &= (~FLAG_OVERFLOW)
-#define setsign(c) c->flags |= FLAG_SIGN
-#define clearsign(c) c->flags &= (~FLAG_SIGN)
-#define saveaccum(c, n) c->a = (uint8_t)((n)&0x00FF)
 
-// flag calculation macros
-#define zerocalc(c, n)                                                         \
-    {                                                                          \
-        if ((n)&0x00FF)                                                        \
-            clearzero(c);                                                      \
-        else                                                                   \
-            setzero(c);                                                        \
-    }
+#if defined(CMOS6502) && !defined(DECIMALMODE)
+#error can not have CMOS6502 without DECIMALMODE
+#endif
 
-#define signcalc(c, n)                                                         \
-    {                                                                          \
-        if ((n)&0x0080)                                                        \
-            setsign(c);                                                        \
-        else                                                                   \
-            clearsign(c);                                                      \
-    }
 
-#define carrycalc(c, n)                                                        \
-    {                                                                          \
-        if ((n)&0xFF00)                                                        \
-            setcarry(c);                                                       \
-        else                                                                   \
-            clearcarry(c);                                                     \
-    }
+/*********************************************************************
+GLOBAL's
+*********************************************************************/
 
-#define overflowcalc(c, n, m, o)                                               \
-    { /* n = result, m = accumulator, o = memory */                            \
-        if (((n) ^ (uint16_t)(m)) & ((n) ^ (o)) & 0x0080)                      \
-            setoverflow(c);                                                    \
-        else                                                                   \
-            clearoverflow(c);                                                  \
-    }
 
-typedef struct {
-    void (*addr_mode)(context_t *c);
-    void (*opcode)(context_t *c);
-    int clockticks;
-} opcode_t;
-static opcode_t opcodes[256];
+
+/*********************************************************************
+FUNCTION's
+*********************************************************************/
 
 // a few general functions used by various other functions
-void push6502_8(context_t *c, uint8_t pushval) {
-    mem_write(c, BASE_STACK + c->s--, pushval);
+
+void push6502_8(context_6502 *c, uint8_t pushval) {
+    mem_write(c, BASE_STACK + c->cpu.s--, pushval);
 }
 
-void push6502_16(context_t *c, uint16_t pushval) {
+void push6502_16(context_6502 *c, uint16_t pushval) {
     push6502_8(c, (pushval >> 8) & 0xFF);
     push6502_8(c, pushval & 0xFF);
 }
 
-uint8_t pull6502_8(context_t *c) { return (mem_read(c, BASE_STACK + ++c->s)); }
+uint8_t pull6502_8(context_6502 *c) { return (mem_read(c, BASE_STACK + ++c->cpu.s)); }
 
-uint16_t pull6502_16(context_t *c) {
+uint16_t pull6502_16(context_6502 *c) {
     uint8_t t;
     t = pull6502_8(c);
     return pull6502_8(c) << 8 | t;
 }
 
-uint16_t mem_read16(context_t *c, uint16_t addr) {
+uint16_t mem_read16(context_6502 *c, uint16_t addr) {
     // Read two consecutive bytes from memory
     return ((uint16_t)mem_read(c, addr) |
             ((uint16_t)mem_read(c, addr + 1) << 8));
 }
 
+
+/********************************************************************/
+
 // addressing mode functions, calculates effective addresses
-static void imp(context_t *c) { // implied
+
+static void imp(context_6502 *c) { // implied
 }
 
-static void acc(context_t *c) { // accumulator
+static void acc(context_6502 *c) { // accumulator
 }
 
-static void imm(context_t *c) { // immediate
-    c->ea = c->pc++;
+static void imm(context_6502 *c) { // immediate
+    c->emu.ea = c->cpu.pc++;
 }
 
-static void zp(context_t *c) { // zero-page
-    c->ea = (uint16_t)mem_read(c, (uint16_t)c->pc++);
+static void zp(context_6502 *c) { // zero-page
+    c->emu.ea = (uint16_t)mem_read(c, (uint16_t)c->cpu.pc++);
 }
 
-static void zpx(context_t *c) { // zero-page,X
-    c->ea = ((uint16_t)mem_read(c, (uint16_t)c->pc++) + (uint16_t)c->x) &
+static void zpx(context_6502 *c) { // zero-page,X
+    c->emu.ea = ((uint16_t)mem_read(c, (uint16_t)c->cpu.pc++) + (uint16_t)c->cpu.x) &
             0xFF; // zero-page wraparound
 }
 
-static void zpy(context_t *c) { // zero-page,Y
-    c->ea = ((uint16_t)mem_read(c, (uint16_t)c->pc++) + (uint16_t)c->y) &
+static void zpy(context_6502 *c) { // zero-page,Y
+    c->emu.ea = ((uint16_t)mem_read(c, (uint16_t)c->cpu.pc++) + (uint16_t)c->cpu.y) &
             0xFF; // zero-page wraparound
 }
 
-static void rel(context_t *c) { // relative for branch ops (8-bit immediate
+static void rel(context_6502 *c) { // relative for branch ops (8-bit immediate
                                 // value, sign-extended)
-    uint16_t rel = (uint16_t)mem_read(c, c->pc++);
+    uint16_t rel = (uint16_t)mem_read(c, c->cpu.pc++);
     if (rel & 0x80)
         rel |= 0xFF00;
-    c->ea = c->pc + rel;
+    c->emu.ea = c->cpu.pc + rel;
 }
 
-static void abso(context_t *c) { // absolute
-    c->ea = mem_read16(c, c->pc);
-    c->pc += 2;
+static void abso(context_6502 *c) { // absolute
+    c->emu.ea = mem_read16(c, c->cpu.pc);
+    c->cpu.pc += 2;
 }
 
-static void absx(context_t *c) { // absolute,X
-    c->ea = mem_read16(c, c->pc);
-    c->ea += (uint16_t)c->x;
+static void absx(context_6502 *c) { // absolute,X
+    c->emu.ea = mem_read16(c, c->cpu.pc);
+    c->emu.ea += (uint16_t)c->cpu.x;
 
-    c->pc += 2;
+    c->cpu.pc += 2;
 }
 
-static void absx_p(context_t *c) { // absolute,X with cycle penalty
+static void absx_p(context_6502 *c) { // absolute,X with cycle penalty
     uint16_t startpage;
-    c->ea = mem_read16(c, c->pc);
-    startpage = c->ea & 0xFF00;
-    c->ea += (uint16_t)c->x;
-    if (startpage != (c->ea & 0xff00))
-        c->clockticks++;
+    c->emu.ea = mem_read16(c, c->cpu.pc);
+    startpage = c->emu.ea & 0xFF00;
+    c->emu.ea += (uint16_t)c->cpu.x;
+    if (startpage != (c->emu.ea & 0xff00))
+        c->emu.clockticks++;
 
-    c->pc += 2;
+    c->cpu.pc += 2;
 }
 
-static void absxi(context_t *c) { // (absolute,X)
-    c->ea = mem_read16(c, c->pc);
-    c->ea += (uint16_t)c->x;
-    c->ea = mem_read16(c, c->ea);
+static void absxi(context_6502 *c) { // (absolute,X)
+    c->emu.ea = mem_read16(c, c->cpu.pc);
+    c->emu.ea += (uint16_t)c->cpu.x;
+    c->emu.ea = mem_read16(c, c->emu.ea);
 
-    c->pc += 2;
+    c->cpu.pc += 2;
 }
 
-static void absy(context_t *c) { // absolute,Y
-    c->ea = mem_read16(c, c->pc);
-    c->ea += (uint16_t)c->y;
+static void absy(context_6502 *c) { // absolute,Y
+    c->emu.ea = mem_read16(c, c->cpu.pc);
+    c->emu.ea += (uint16_t)c->cpu.y;
 
-    c->pc += 2;
+    c->cpu.pc += 2;
 }
 
-static void absy_p(context_t *c) { // absolute,Y
+static void absy_p(context_6502 *c) { // absolute,Y
     uint16_t startpage;
-    c->ea = mem_read16(c, c->pc);
-    startpage = c->ea & 0xFF00;
-    c->ea += (uint16_t)c->y;
-    if (startpage != (c->ea & 0xff00))
-        c->clockticks++;
+    c->emu.ea = mem_read16(c, c->cpu.pc);
+    startpage = c->emu.ea & 0xFF00;
+    c->emu.ea += (uint16_t)c->cpu.y;
+    if (startpage != (c->emu.ea & 0xff00))
+        c->emu.clockticks++;
 
-    c->pc += 2;
+    c->cpu.pc += 2;
 }
 
 #ifdef NMOS6502
-static void ind(context_t *c) { // indirect
+static void ind(context_6502 *c) { // indirect
     uint16_t eahelp, eahelp2;
-    eahelp = mem_read16(c, c->pc);
+    eahelp = mem_read16(c, c->cpu.pc);
     eahelp2 =
         (eahelp & 0xFF00) |
         ((eahelp + 1) & 0x00FF); // replicate 6502 page-boundary wraparound bug
-    c->ea =
+    c->emu.ea =
         (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
-    c->pc += 2;
+    c->cpu.pc += 2;
 }
 #endif
 
 #ifdef CMOS6502
-static void ind(context_t *c) { // indirect
+static void ind(context_6502 *c) { // indirect
     uint16_t eahelp;
-    eahelp = mem_read16(c, c->pc);
+    eahelp = mem_read16(c, c->cpu.pc);
     if ((eahelp & 0x00ff) == 0xff)
-        c->clockticks++;
-    c->ea = mem_read16(c, eahelp);
-    c->pc += 2;
+        c->emu.clockticks++;
+    c->emu.ea = mem_read16(c, eahelp);
+    c->cpu.pc += 2;
 }
 #endif
 
-static void indx(context_t *c) { // (indirect,X)
+static void indx(context_6502 *c) { // (indirect,X)
     uint16_t eahelp;
-    eahelp = (uint16_t)(((uint16_t)mem_read(c, c->pc++) + (uint16_t)c->x) &
+    eahelp = (uint16_t)(((uint16_t)mem_read(c, c->cpu.pc++) + (uint16_t)c->cpu.x) &
                         0xFF); // zero-page wraparound for table pointer
-    c->ea = (uint16_t)mem_read(c, eahelp & 0x00FF) |
+    c->emu.ea = (uint16_t)mem_read(c, eahelp & 0x00FF) |
             ((uint16_t)mem_read(c, (eahelp + 1) & 0x00FF) << 8);
 }
 
-static void indy(context_t *c) { // (indirect),Y
+static void indy(context_6502 *c) { // (indirect),Y
     uint16_t eahelp, eahelp2;
-    eahelp = (uint16_t)mem_read(c, c->pc++);
+    eahelp = (uint16_t)mem_read(c, c->cpu.pc++);
     eahelp2 =
         (eahelp & 0xFF00) | ((eahelp + 1) & 0x00FF); // zero-page wraparound
-    c->ea =
+    c->emu.ea =
         (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
-    c->ea += (uint16_t)c->y;
+    c->emu.ea += (uint16_t)c->cpu.y;
 }
 
-static void indy_p(context_t *c) { // (indirect),Y
+static void indy_p(context_6502 *c) { // (indirect),Y
     uint16_t eahelp, eahelp2, startpage;
-    eahelp = (uint16_t)mem_read(c, c->pc++);
+    eahelp = (uint16_t)mem_read(c, c->cpu.pc++);
     eahelp2 =
         (eahelp & 0xFF00) | ((eahelp + 1) & 0x00FF); // zero-page wraparound
-    c->ea =
+    c->emu.ea =
         (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
-    startpage = c->ea & 0xFF00;
-    c->ea += (uint16_t)c->y;
-    if (startpage != (c->ea & 0xff00))
-        c->clockticks++;
+    startpage = c->emu.ea & 0xFF00;
+    c->emu.ea += (uint16_t)c->cpu.y;
+    if (startpage != (c->emu.ea & 0xff00))
+        c->emu.clockticks++;
 }
 
-static void zpi(context_t *c) { // (zp)
+static void zpi(context_6502 *c) { // (zp)
     uint16_t eahelp, eahelp2;
-    eahelp = (uint16_t)mem_read(c, c->pc++);
+    eahelp = (uint16_t)mem_read(c, c->cpu.pc++);
     eahelp2 =
         (eahelp & 0xFF00) | ((eahelp + 1) & 0x00FF); // zero-page wraparound
-    c->ea =
+    c->emu.ea =
         (uint16_t)mem_read(c, eahelp) | ((uint16_t)mem_read(c, eahelp2) << 8);
 }
 
-static uint16_t getvalue(context_t *c) {
-    if (opcodes[c->opcode].addr_mode == acc)
-        return ((uint16_t)c->a);
+
+/********************************************************************/
+
+// supporting instruction handler functions
+
+uint16_t getvalue(context_6502 *c) {
+    if (opcodes[c->emu.opcode].addr_mode == acc)
+        return ((uint16_t)c->cpu.a);
     else
-        return ((uint16_t)mem_read(c, c->ea));
+        return ((uint16_t)mem_read(c, c->emu.ea));
 }
 
-static void putvalue(context_t *c, uint16_t saveval) {
-    if (opcodes[c->opcode].addr_mode == acc)
-        c->a = (uint8_t)(saveval & 0x00FF);
+void putvalue(context_6502 *c, uint16_t saveval) {
+    if (opcodes[c->emu.opcode].addr_mode == acc)
+        c->cpu.a = (uint8_t)(saveval & 0x00FF);
     else
-        mem_write(c, c->ea, (saveval & 0x00FF));
+        mem_write(c, c->emu.ea, (saveval & 0x00FF));
 }
 
-uint8_t add8(context_t *c, uint16_t a, uint16_t b, bool carry) {
+uint8_t add8(context_6502 *c, uint16_t a, uint16_t b, bool carry) {
     uint16_t result = a + b + (uint16_t)(carry ? 1 : 0);
 
     carrycalc(c, result);
@@ -413,7 +359,7 @@ uint8_t add8(context_t *c, uint16_t a, uint16_t b, bool carry) {
     signcalc(c, result);
 
 #ifdef DECIMALMODE
-    if (c->flags & FLAG_DECIMAL) {
+    if (c->cpu.flags & FLAG_DECIMAL) {
         clearcarry(c);
 
         if ((result & 0x0F) > 0x09) {
@@ -424,14 +370,14 @@ uint8_t add8(context_t *c, uint16_t a, uint16_t b, bool carry) {
             setcarry(c);
         }
 
-        c->clockticks++;
+        c->emu.clockticks++;
     }
 #endif
     return result;
 }
 
-uint8_t rotate_right(context_t *c, uint16_t value) {
-    uint16_t result = (value >> 1) | ((c->flags & FLAG_CARRY) << 7);
+uint8_t rotate_right(context_6502 *c, uint16_t value) {
+    uint16_t result = (value >> 1) | ((c->cpu.flags & FLAG_CARRY) << 7);
 
     if (value & 1)
         setcarry(c);
@@ -443,8 +389,8 @@ uint8_t rotate_right(context_t *c, uint16_t value) {
     return result;
 }
 
-uint8_t rotate_left(context_t *c, uint16_t value) {
-    uint16_t result = (value << 1) | (c->flags & FLAG_CARRY);
+uint8_t rotate_left(context_6502 *c, uint16_t value) {
+    uint16_t result = (value << 1) | (c->cpu.flags & FLAG_CARRY);
 
     carrycalc(c, result);
     zerocalc(c, result);
@@ -453,7 +399,7 @@ uint8_t rotate_left(context_t *c, uint16_t value) {
     return result;
 }
 
-uint8_t logical_shift_right(context_t *c, uint8_t value) {
+uint8_t logical_shift_right(context_6502 *c, uint8_t value) {
     uint16_t result = value >> 1;
     if (value & 1)
         setcarry(c);
@@ -465,7 +411,7 @@ uint8_t logical_shift_right(context_t *c, uint8_t value) {
     return result;
 }
 
-uint8_t arithmetic_shift_left(context_t *c, uint8_t value) {
+uint8_t arithmetic_shift_left(context_6502 *c, uint8_t value) {
     uint16_t result = value << 1;
 
     carrycalc(c, result);
@@ -474,7 +420,7 @@ uint8_t arithmetic_shift_left(context_t *c, uint8_t value) {
     return result;
 }
 
-uint8_t exclusive_or(context_t *c, uint8_t a, uint8_t b) {
+uint8_t exclusive_or(context_6502 *c, uint8_t a, uint8_t b) {
     uint16_t result = a ^ b;
 
     zerocalc(c, result);
@@ -483,7 +429,7 @@ uint8_t exclusive_or(context_t *c, uint8_t a, uint8_t b) {
     return result;
 }
 
-uint8_t boolean_and(context_t *c, uint8_t a, uint8_t b) {
+uint8_t boolean_and(context_6502 *c, uint8_t a, uint8_t b) {
     uint16_t result = (uint16_t)a & b;
 
     zerocalc(c, result);
@@ -491,100 +437,21 @@ uint8_t boolean_and(context_t *c, uint8_t a, uint8_t b) {
     return result;
 }
 
-// instruction handler functions
-void adc(context_t *c) {
-    uint16_t value = getvalue(c);
-    saveaccum(c, add8(c, c->a, value, c->flags & FLAG_CARRY));
-}
-
-void and (context_t * c) {
-    uint8_t m = getvalue(c);
-    saveaccum(c, boolean_and(c, c->a, m));
-}
-
-void asl(context_t *c) { putvalue(c, arithmetic_shift_left(c, getvalue(c))); }
-
-void bra(context_t *c) {
-    uint16_t oldpc = c->pc;
-    c->pc = c->ea;
-    if ((oldpc & 0xFF00) != (c->pc & 0xFF00))
-        c->clockticks += 2; // check if jump crossed a page boundary
-    else
-        c->clockticks++;
-}
-
-void bcc(context_t *c) {
-    if ((c->flags & FLAG_CARRY) == 0)
-        bra(c);
-}
-
-void bcs(context_t *c) {
-    if ((c->flags & FLAG_CARRY) == FLAG_CARRY)
-        bra(c);
-}
-
-void beq(context_t *c) {
-    if ((c->flags & FLAG_ZERO) == FLAG_ZERO)
-        bra(c);
-}
-
-void bit(context_t *c) {
-    uint8_t value = getvalue(c);
-    uint8_t result = (uint16_t)c->a & value;
-
+uint8_t increment(context_6502 *c, uint8_t r) {
+    uint16_t result = r + 1;
     zerocalc(c, result);
-    c->flags = (c->flags & 0x3F) | (uint8_t)(value & 0xC0);
+    signcalc(c, result);
+    return result;
 }
 
-void bit_imm(context_t *c) {
-    uint8_t value = getvalue(c);
-    uint8_t result = (uint16_t)c->a & value;
-
+uint8_t decrement(context_6502 *c, uint8_t r) {
+    uint16_t result = r - 1;
     zerocalc(c, result);
+    signcalc(c, result);
+    return result;
 }
 
-void bmi(context_t *c) {
-    if ((c->flags & FLAG_SIGN) == FLAG_SIGN)
-        bra(c);
-}
-
-void bne(context_t *c) {
-    if ((c->flags & FLAG_ZERO) == 0)
-        bra(c);
-}
-
-void bpl(context_t *c) {
-    if ((c->flags & FLAG_SIGN) == 0)
-        bra(c);
-}
-
-void brk(context_t *c) {
-    c->pc++;
-    push6502_16(c, c->pc);                // push next instruction address onto stack
-    push6502_8(c, c->flags | FLAG_BREAK); // push CPU flags to stack
-    setinterrupt(c);                 // set interrupt flag
-    c->pc = mem_read16(c, 0xfffe);
-}
-
-void bvc(context_t *c) {
-    if ((c->flags & FLAG_OVERFLOW) == 0)
-        bra(c);
-}
-
-void bvs(context_t *c) {
-    if ((c->flags & FLAG_OVERFLOW) == FLAG_OVERFLOW)
-        bra(c);
-}
-
-void clc(context_t *c) { clearcarry(c); }
-
-void cld(context_t *c) { cleardecimal(c); }
-
-void cli(context_t *c) { clearinterrupt(c); }
-
-void clv(context_t *c) { clearoverflow(c); }
-
-static void compare(context_t *c, uint16_t r) {
+void compare(context_6502 *c, uint16_t r) {
     uint16_t value = getvalue(c);
     uint16_t result = r - value;
 
@@ -599,78 +466,161 @@ static void compare(context_t *c, uint16_t r) {
     signcalc(c, result);
 }
 
-void cmp(context_t *c) { compare(c, c->a); }
 
-void cpx(context_t *c) { compare(c, c->x); }
+/********************************************************************/
 
-void cpy(context_t *c) { compare(c, c->y); }
+// instruction handler functions
 
-uint8_t decrement(context_t *c, uint8_t r) {
-    uint16_t result = r - 1;
+void adc(context_6502 *c) {
+    uint16_t value = getvalue(c);
+    saveaccum(c, add8(c, c->cpu.a, value, c->cpu.flags & FLAG_CARRY));
+}
+
+void and(context_6502 * c) {
+    uint8_t m = getvalue(c);
+    saveaccum(c, boolean_and(c, c->cpu.a, m));
+}
+
+void asl(context_6502 *c) { putvalue(c, arithmetic_shift_left(c, getvalue(c))); }
+
+void bra(context_6502 *c) {
+    uint16_t oldpc = c->cpu.pc;
+    c->cpu.pc = c->emu.ea;
+    if ((oldpc & 0xFF00) != (c->cpu.pc & 0xFF00))
+        c->emu.clockticks += 2; // check if jump crossed a page boundary
+    else
+        c->emu.clockticks++;
+}
+
+void bcc(context_6502 *c) {
+    if ((c->cpu.flags & FLAG_CARRY) == 0)
+        bra(c);
+}
+
+void bcs(context_6502 *c) {
+    if ((c->cpu.flags & FLAG_CARRY) == FLAG_CARRY)
+        bra(c);
+}
+
+void beq(context_6502 *c) {
+    if ((c->cpu.flags & FLAG_ZERO) == FLAG_ZERO)
+        bra(c);
+}
+
+void bit(context_6502 *c) {
+    uint8_t value = getvalue(c);
+    uint8_t result = (uint16_t)c->cpu.a & value;
+
     zerocalc(c, result);
-    signcalc(c, result);
-    return result;
+    c->cpu.flags = (c->cpu.flags & 0x3F) | (uint8_t)(value & 0xC0);
 }
 
-void dec(context_t *c) { putvalue(c, decrement(c, getvalue(c))); }
+void bit_imm(context_6502 *c) {
+    uint8_t value = getvalue(c);
+    uint8_t result = (uint16_t)c->cpu.a & value;
 
-void dex(context_t *c) { c->x = decrement(c, c->x); }
-
-void dey(context_t *c) { c->y = decrement(c, c->y); }
-
-void eor(context_t *c) { saveaccum(c, exclusive_or(c, c->a, getvalue(c))); }
-
-uint8_t increment(context_t *c, uint8_t r) {
-    uint16_t result = r + 1;
     zerocalc(c, result);
-    signcalc(c, result);
-    return result;
 }
 
-void inc(context_t *c) { putvalue(c, increment(c, getvalue(c))); }
-
-void inx(context_t *c) { c->x = increment(c, c->x); }
-
-void iny(context_t *c) { c->y = increment(c, c->y); }
-
-void jmp(context_t *c) { c->pc = c->ea; }
-
-void jsr(context_t *c) {
-    push6502_16(c, c->pc - 1);
-    c->pc = c->ea;
+void bmi(context_6502 *c) {
+    if ((c->cpu.flags & FLAG_SIGN) == FLAG_SIGN)
+        bra(c);
 }
 
-void lda(context_t *c) {
+void bne(context_6502 *c) {
+    if ((c->cpu.flags & FLAG_ZERO) == 0)
+        bra(c);
+}
+
+void bpl(context_6502 *c) {
+    if ((c->cpu.flags & FLAG_SIGN) == 0)
+        bra(c);
+}
+
+void brk(context_6502 *c) {
+    c->cpu.pc++;
+    push6502_16(c, c->cpu.pc);                // push next instruction address onto stack
+    push6502_8(c, c->cpu.flags | FLAG_BREAK); // push CPU flags to stack
+    setinterrupt(c);                 // set interrupt flag
+    c->cpu.pc = mem_read16(c, 0xfffe);
+}
+
+void bvc(context_6502 *c) {
+    if ((c->cpu.flags & FLAG_OVERFLOW) == 0)
+        bra(c);
+}
+
+void bvs(context_6502 *c) {
+    if ((c->cpu.flags & FLAG_OVERFLOW) == FLAG_OVERFLOW)
+        bra(c);
+}
+
+void clc(context_6502 *c) { clearcarry(c); }
+
+void cld(context_6502 *c) { cleardecimal(c); }
+
+void cli(context_6502 *c) { clearinterrupt(c); }
+
+void clv(context_6502 *c) { clearoverflow(c); }
+
+void cmp(context_6502 *c) { compare(c, c->cpu.a); }
+
+void cpx(context_6502 *c) { compare(c, c->cpu.x); }
+
+void cpy(context_6502 *c) { compare(c, c->cpu.y); }
+
+void dec(context_6502 *c) { putvalue(c, decrement(c, getvalue(c))); }
+
+void dex(context_6502 *c) { c->cpu.x = decrement(c, c->cpu.x); }
+
+void dey(context_6502 *c) { c->cpu.y = decrement(c, c->cpu.y); }
+
+void eor(context_6502 *c) { saveaccum(c, exclusive_or(c, c->cpu.a, getvalue(c))); }
+
+void inc(context_6502 *c) { putvalue(c, increment(c, getvalue(c))); }
+
+void inx(context_6502 *c) { c->cpu.x = increment(c, c->cpu.x); }
+
+void iny(context_6502 *c) { c->cpu.y = increment(c, c->cpu.y); }
+
+void jmp(context_6502 *c) { c->cpu.pc = c->emu.ea; }
+
+void jsr(context_6502 *c) {
+    push6502_16(c, c->cpu.pc - 1);
+    c->cpu.pc = c->emu.ea;
+}
+
+void lda(context_6502 *c) {
     uint16_t value = getvalue(c);
-    c->a = (uint8_t)(value & 0x00FF);
+    c->cpu.a = (uint8_t)(value & 0x00FF);
 
-    zerocalc(c, c->a);
-    signcalc(c, c->a);
+    zerocalc(c, c->cpu.a);
+    signcalc(c, c->cpu.a);
 }
 
-void ldx(context_t *c) {
+void ldx(context_6502 *c) {
     uint16_t value = getvalue(c);
-    c->x = (uint8_t)(value & 0x00FF);
+    c->cpu.x = (uint8_t)(value & 0x00FF);
 
-    zerocalc(c, c->x);
-    signcalc(c, c->x);
+    zerocalc(c, c->cpu.x);
+    signcalc(c, c->cpu.x);
 }
 
-void ldy(context_t *c) {
+void ldy(context_6502 *c) {
     uint16_t value = getvalue(c);
-    c->y = (uint8_t)(value & 0x00FF);
+    c->cpu.y = (uint8_t)(value & 0x00FF);
 
-    zerocalc(c, c->y);
-    signcalc(c, c->y);
+    zerocalc(c, c->cpu.y);
+    signcalc(c, c->cpu.y);
 }
 
-void lsr(context_t *c) { putvalue(c, logical_shift_right(c, getvalue(c))); }
+void lsr(context_6502 *c) { putvalue(c, logical_shift_right(c, getvalue(c))); }
 
-void nop(context_t *c) {}
+void nop(context_6502 *c) {}
 
-void ora(context_t *c) {
+void ora(context_6502 *c) {
     uint16_t value = getvalue(c);
-    uint16_t result = (uint16_t)c->a | value;
+    uint16_t result = (uint16_t)c->cpu.a | value;
 
     zerocalc(c, result);
     signcalc(c, result);
@@ -678,70 +628,70 @@ void ora(context_t *c) {
     saveaccum(c, result);
 }
 
-void pha(context_t *c) { push6502_8(c, c->a); }
+void pha(context_6502 *c) { push6502_8(c, c->cpu.a); }
 
-void phx(context_t *c) { push6502_8(c, c->x); }
+void phx(context_6502 *c) { push6502_8(c, c->cpu.x); }
 
-void phy(context_t *c) { push6502_8(c, c->y); }
+void phy(context_6502 *c) { push6502_8(c, c->cpu.y); }
 
-void php(context_t *c) { push6502_8(c, c->flags | FLAG_BREAK); }
+void php(context_6502 *c) { push6502_8(c, c->cpu.flags | FLAG_BREAK); }
 
-void pla(context_t *c) {
-    c->a = pull6502_8(c);
+void pla(context_6502 *c) {
+    c->cpu.a = pull6502_8(c);
 
-    zerocalc(c, c->a);
-    signcalc(c, c->a);
+    zerocalc(c, c->cpu.a);
+    signcalc(c, c->cpu.a);
 }
 
-void plx(context_t *c) {
-    c->x = pull6502_8(c);
+void plx(context_6502 *c) {
+    c->cpu.x = pull6502_8(c);
 
-    zerocalc(c, c->x);
-    signcalc(c, c->x);
+    zerocalc(c, c->cpu.x);
+    signcalc(c, c->cpu.x);
 }
 
-void ply(context_t *c) {
-    c->y = pull6502_8(c);
+void ply(context_6502 *c) {
+    c->cpu.y = pull6502_8(c);
 
-    zerocalc(c, c->y);
-    signcalc(c, c->y);
+    zerocalc(c, c->cpu.y);
+    signcalc(c, c->cpu.y);
 }
 
-void plp(context_t *c) { c->flags = pull6502_8(c) | FLAG_CONSTANT | FLAG_BREAK; }
+void plp(context_6502 *c) { c->cpu.flags = pull6502_8(c) | FLAG_CONSTANT | FLAG_BREAK; }
 
-void rol(context_t *c) {
+void rol(context_6502 *c) {
     uint16_t value = getvalue(c);
 
     putvalue(c, value);
     putvalue(c, rotate_left(c, value));
 }
 
-void ror(context_t *c) {
+void ror(context_6502 *c) {
     uint16_t value = getvalue(c);
 
     putvalue(c, value);
     putvalue(c, rotate_right(c, value));
 }
 
-void rti(context_t *c) {
-    c->flags = pull6502_8(c) | FLAG_CONSTANT | FLAG_BREAK;
-    c->pc = pull6502_16(c);
+void rti(context_6502 *c) {
+    c->cpu.flags = pull6502_8(c) | FLAG_CONSTANT | FLAG_BREAK;
+    c->cpu.pc = pull6502_16(c);
 }
 
-void rts(context_t *c) { c->pc = pull6502_16(c) + 1; }
+void rts(context_6502 *c) { c->cpu.pc = pull6502_16(c) + 1; }
 
-void sbc(context_t *c) {
+void sbc(context_6502 *c) {
     uint16_t value = getvalue(c);
     uint16_t result =
-        (uint16_t)c->a - value - ((c->flags & FLAG_CARRY) ? 0 : 1);
+        (uint16_t)c->cpu.a - value - ((c->cpu.flags & FLAG_CARRY) ? 0 : 1);
 
     carrycalc(c, result);
     zerocalc(c, result);
-    overflowcalc(c, result, c->a, value);
+    overflowcalc(c, result, c->cpu.a, value);
     signcalc(c, result);
 
 #ifndef NES_CPU
-    if (c->flags & FLAG_DECIMAL) {
+    if (c->cpu.flags & FLAG_DECIMAL) {
         clearcarry(c);
 
         if ((result & 0x0F) > 0x09) {
@@ -752,129 +702,136 @@ void sbc(context_t *c) {
             setcarry(c);
         }
 
-        c->clockticks++;
+        c->emu.clockticks++;
     }
 #endif
 
     saveaccum(c, result);
 }
 
-void sec(context_t *c) { setcarry(c); }
+void sec(context_6502 *c) { setcarry(c); }
 
-void sed(context_t *c) { setdecimal(c); }
+void sed(context_6502 *c) { setdecimal(c); }
 
-void sei(context_t *c) { setinterrupt(c); }
+void sei(context_6502 *c) { setinterrupt(c); }
 
-void sta(context_t *c) { putvalue(c, c->a); }
+void sta(context_6502 *c) { putvalue(c, c->cpu.a); }
 
-void stx(context_t *c) { putvalue(c, c->x); }
+void stx(context_6502 *c) { putvalue(c, c->cpu.x); }
 
-void sty(context_t *c) { putvalue(c, c->y); }
+void sty(context_6502 *c) { putvalue(c, c->cpu.y); }
 
-void stz(context_t *c) { putvalue(c, 0); }
+void stz(context_6502 *c) { putvalue(c, 0); }
 
-void tax(context_t *c) {
-    c->x = c->a;
+void tax(context_6502 *c) {
+    c->cpu.x = c->cpu.a;
 
-    zerocalc(c, c->x);
-    signcalc(c, c->x);
+    zerocalc(c, c->cpu.x);
+    signcalc(c, c->cpu.x);
 }
 
-void tay(context_t *c) {
-    c->y = c->a;
+void tay(context_6502 *c) {
+    c->cpu.y = c->cpu.a;
 
-    zerocalc(c, c->y);
-    signcalc(c, c->y);
+    zerocalc(c, c->cpu.y);
+    signcalc(c, c->cpu.y);
 }
 
-void tsx(context_t *c) {
-    c->x = c->s;
+void tsx(context_6502 *c) {
+    c->cpu.x = c->cpu.s;
 
-    zerocalc(c, c->x);
-    signcalc(c, c->x);
+    zerocalc(c, c->cpu.x);
+    signcalc(c, c->cpu.x);
 }
 
-void trb(context_t *c) {
+void trb(context_6502 *c) {
     uint16_t value = getvalue(c);
-    uint16_t result = (uint16_t)c->a & ~value;
+    uint16_t result = (uint16_t)c->cpu.a & ~value;
     putvalue(c, result);
-    zerocalc(c, (c->a | result) & 0x00ff);
+    zerocalc(c, (c->cpu.a | result) & 0x00ff);
 }
 
-void tsb(context_t *c) {
+void tsb(context_6502 *c) {
     uint16_t value = getvalue(c);
-    uint16_t result = (uint16_t)c->a | value;
+    uint16_t result = (uint16_t)c->cpu.a | value;
     putvalue(c, result);
-    zerocalc(c, (c->a | result) & 0x00ff);
+    zerocalc(c, (c->cpu.a | result) & 0x00ff);
 }
 
-void txa(context_t *c) {
-    c->a = c->x;
+void txa(context_6502 *c) {
+    c->cpu.a = c->cpu.x;
 
-    zerocalc(c, c->a);
-    signcalc(c, c->a);
+    zerocalc(c, c->cpu.a);
+    signcalc(c, c->cpu.a);
 }
 
-void txs(context_t *c) { c->s = c->x; }
+void txs(context_6502 *c) { c->cpu.s = c->cpu.x; }
 
-void tya(context_t *c) {
-    c->a = c->y;
+void tya(context_6502 *c) {
+    c->cpu.a = c->cpu.y;
 
-    zerocalc(c, c->a);
-    signcalc(c, c->a);
+    zerocalc(c, c->cpu.a);
+    signcalc(c, c->cpu.a);
 }
 
-void lax(context_t *c) {
+void lax(context_6502 *c) {
     uint16_t value = getvalue(c);
-    c->x = c->a = (uint8_t)(value & 0x00FF);
+    c->cpu.x = c->cpu.a = (uint8_t)(value & 0x00FF);
 
-    zerocalc(c, c->a);
-    signcalc(c, c->a);
+    zerocalc(c, c->cpu.a);
+    signcalc(c, c->cpu.a);
 }
 
-void sax(context_t *c) { putvalue(c, c->a & c->x); }
+void sax(context_6502 *c) { putvalue(c, c->cpu.a & c->cpu.x); }
 
-void dcp(context_t *c) {
+void dcp(context_6502 *c) {
     dec(c);
     cmp(c);
 }
 
-void isb(context_t *c) {
+void isb(context_6502 *c) {
     inc(c);
     sbc(c);
 }
 
-void slo(context_t *c) {
+void slo(context_6502 *c) {
     asl(c);
     ora(c);
 }
 
-void rla(context_t *c) {
+void rla(context_6502 *c) {
     uint16_t value = getvalue(c);
     uint16_t result = rotate_left(c, value);
     putvalue(c, value);
     putvalue(c, result);
-    saveaccum(c, boolean_and(c, c->a, result));
+    saveaccum(c, boolean_and(c, c->cpu.a, result));
 }
 
-void sre(context_t *c) {
+void sre(context_6502 *c) {
     uint16_t value = getvalue(c);
     uint16_t result = logical_shift_right(c, value);
     putvalue(c, value);
     putvalue(c, result);
-    saveaccum(c, exclusive_or(c, c->a, result));
+    saveaccum(c, exclusive_or(c, c->cpu.a, result));
 }
 
-void rra(context_t *c) {
+void rra(context_6502 *c) {
     uint16_t value = getvalue(c);
     uint16_t result = rotate_right(c, value);
     putvalue(c, value);
     putvalue(c, result);
-    saveaccum(c, add8(c, c->a, result, c->flags & FLAG_CARRY));
+    saveaccum(c, add8(c, c->cpu.a, result, c->cpu.flags & FLAG_CARRY));
 }
 
+
+/*********************************************************************
+GLOBAL's
+*********************************************************************/
+
+// the opcode table - NMOS version
+
 #ifdef NMOS6502
-static opcode_t opcodes[256] = {
+opcode_6502 opcodes[256] = {
     /* 00 */
     {imp, brk, 7},
     {indx, ora, 6},
@@ -1149,8 +1106,13 @@ static opcode_t opcodes[256] = {
     {absx, isb, 7}};
 #endif
 
+
+/********************************************************************/
+
+// the opcode table - CMOS version
+
 #ifdef CMOS6502
-static opcode_t opcodes[256] = {
+opcode_6502 opcodes[256] = {
     /* 00 */
     {imp, brk, 7},
     {indx, ora, 6},
@@ -1426,9 +1388,13 @@ static opcode_t opcodes[256] = {
 #endif
 
 
-// the main functions, for use by the host project
+/********************************************************************/
 
-void reset6502(context_t *c) {
+// fake 6502 - API
+
+// the main functions, for use by the host
+
+void reset6502(context_6502 *c) {
     // The 6502 normally does some fake reads after reset because
     // reset is a hacked-up version of NMI/IRQ/BRK
     // See https://www.pagetable.com/?p=410
@@ -1438,33 +1404,39 @@ void reset6502(context_t *c) {
     mem_read(c, 0x0100);
     mem_read(c, 0x01ff);
     mem_read(c, 0x01fe);
-    c->pc = mem_read16(c, 0xfffc);
-    c->s = 0xfd;
-    c->flags |= FLAG_CONSTANT | FLAG_INTERRUPT;
+    c->cpu.pc = mem_read16(c, 0xfffc);
+    c->cpu.s = 0xfd;
+    c->cpu.flags |= FLAG_CONSTANT | FLAG_INTERRUPT;
+
+    c->emu.instructions = 0;
+    c->emu.clockticks = 0;
 }
 
-void nmi6502(context_t *c) {
-    push6502_16(c, c->pc);
-    push6502_8(c, c->flags & ~FLAG_BREAK);
-    c->flags |= FLAG_INTERRUPT;
-    c->pc = mem_read16(c, 0xfffa);
+void nmi6502(context_6502 *c) {
+    push6502_16(c, c->cpu.pc);
+    push6502_8(c, c->cpu.flags & ~FLAG_BREAK);
+    c->cpu.flags |= FLAG_INTERRUPT;
+    c->cpu.pc = mem_read16(c, 0xfffa);
 }
 
-void irq6502(context_t *c) {
-    if ((c->flags & FLAG_INTERRUPT) == 0) {
-        push6502_16(c, c->pc);
-        push6502_8(c, c->flags & ~FLAG_BREAK);
-        c->flags |= FLAG_INTERRUPT;
-        c->pc = mem_read16(c, 0xfffe);
+void irq6502(context_6502 *c) {
+    if ((c->cpu.flags & FLAG_INTERRUPT) == 0) {
+        push6502_16(c, c->cpu.pc);
+        push6502_8(c, c->cpu.flags & ~FLAG_BREAK);
+        c->cpu.flags |= FLAG_INTERRUPT;
+        c->cpu.pc = mem_read16(c, 0xfffe);
     }
 }
 
-void step6502(context_t *c) {
-    uint8_t opcode = mem_read(c, c->pc++);
-    c->opcode = opcode;
-    c->flags |= FLAG_CONSTANT;
+void step6502(context_6502 *c) {
+    uint8_t opcode = mem_read(c, c->cpu.pc++);
+    c->emu.opcode = opcode;
+    c->cpu.flags |= FLAG_CONSTANT;
 
     opcodes[opcode].addr_mode(c);
     opcodes[opcode].opcode(c);
-    c->clockticks += opcodes[opcode].clockticks;
+    c->emu.clockticks += opcodes[opcode].clockticks;
 }
+
+
+/********************************************************************/
