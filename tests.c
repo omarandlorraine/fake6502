@@ -230,10 +230,10 @@ int decimal_mode() {
     f6502.cpu.pc = 0x200;
     f6502.cpu.flags = 0x00;
 
-// Turn on decimal mode, clear carry flag
+    // Turn on decimal mode, clear carry flag
 
-setdecimal(&f6502);
-clearcarry(&f6502);
+    setdecimal(&f6502);
+    clearcarry(&f6502);
 
     exec_instruction(&f6502, 0x69, 0x01, 0x00); // ADC #$01
     CHECK(cpu.pc, 0x202);
@@ -269,10 +269,10 @@ int binary_mode() {
     f6502.cpu.pc = 0x200;
     f6502.cpu.flags = 0x00;
 
-// Turn off decimal mode, clear carry flag
+    // Turn off decimal mode, clear carry flag
 
-cleardecimal(&f6502);
-clearcarry(&f6502);
+    cleardecimal(&f6502);
+    clearcarry(&f6502);
 
     exec_instruction(&f6502, 0x69, 0x01, 0x00); // ADC #$01
     CHECK(cpu.pc, 0x202);
@@ -1112,9 +1112,9 @@ int rol_opcode() {
     f6502.cpu.a = 0x20;
     f6502.cpu.flags = 0x00;
 
-// Make sure Carry's clear
+    // Make sure Carry's clear
 
-clearcarry(&f6502);
+    clearcarry(&f6502);
 
     exec_instruction(&f6502, 0x2a, 0x00, 0x00); // rol
     CHECKFLAG(FLAG_CARRY, 0);
