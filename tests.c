@@ -21,20 +21,21 @@
 // -------------------------------------------------------------------
 
 #define CHECK(var, shouldbe)                                                   \
-    if (f6502.var != shouldbe)                                                   \
-        return printf("line %d: " #var " should've been %04x but was %04x\n",  \
-                      __LINE__, shouldbe, f6502.var);
+    if (f6502.var != shouldbe)                                                 \
+        return( printf("line %d: " #var " should've been %04x but was %04x\n", \
+                      __LINE__, shouldbe, f6502.var) );
+
 #define CHECKMEM(var, shouldbe)                                                \
-    if (mem_read(&f6502, var) != (shouldbe))                                     \
-        return printf("line %d: memory location " #var                         \
+    if (mem_read(&f6502, var) != (shouldbe))                                   \
+        return( printf("line %d: memory location " #var                        \
                       " should've been %02x but was %02x\n",                   \
-                      __LINE__, shouldbe, mem_read(&f6502, var));
+                      __LINE__, shouldbe, mem_read(&f6502, var)) );
 
 #define CHECKFLAG(flag, shouldbe)                                              \
-    if (!!(f6502.cpu.flags & flag) != !!shouldbe)                                    \
-        return printf(                                                         \
+    if (!!(f6502.cpu.flags & flag) != !!shouldbe)                              \
+        return( printf(                                                        \
             "line %d: " #flag " should be %sset but isn't, [ %02x, %02x] \n",  \
-            __LINE__, shouldbe ? "" : "re", (f6502.cpu.flags & flag), shouldbe);
+            __LINE__, shouldbe ? "" : "re", (f6502.cpu.flags & flag), shouldbe) );
 
 #define CHECKCYCLES(r, w)                                                      \
     if (reads != r)                                                            \
@@ -48,6 +49,17 @@
 // -------------------------------------------------------------------
 // typedef's
 // -------------------------------------------------------------------
+
+// all/any data needed by the host code
+// eg. the passing of the 64K memory space
+
+typedef struct test_host_state {
+    uint8_t *memory;
+    // any other data your host might need
+} test_host_state;
+
+
+// a test entry
 
 typedef struct test_t {
     char *testname;
@@ -63,6 +75,8 @@ uint8_t mem[65536];
 
 int reads, writes;
 
+test_host_state test_data;
+
 
 // -------------------------------------------------------------------
 // function's
@@ -72,12 +86,12 @@ int reads, writes;
 
 uint8_t mem_read(context_6502 *c, uint16_t addr) {
     reads++;
-    return mem[addr];
+    return( ((test_host_state*)c->state_host)->memory[addr] );
 }
 
 void mem_write(context_6502 *c, uint16_t addr, uint8_t val) {
     writes++;
-    mem[addr] = val;
+    ((test_host_state*)c->state_host)->memory[addr] = val;
 }
 
 
@@ -85,19 +99,29 @@ void mem_write(context_6502 *c, uint16_t addr, uint8_t val) {
 
 // testing support
 
+void test_init(context_6502 *cpu) {
+
+    test_data.memory = mem;
+    cpu->state_host = (void*)&test_data;
+
+    reset6502(cpu);
+}
+
 void exec_instruction(context_6502 *cpu, uint8_t opcode, uint8_t op1,
                       uint8_t op2) {
     mem_write(cpu, cpu->cpu.pc, opcode);
     mem_write(cpu, cpu->cpu.pc + 1, op1);
     mem_write(cpu, cpu->cpu.pc + 2, op2);
 
-    cpu->emu.clockticks = reads = writes = 0;
+    cpu->emu.instructions = cpu->emu.clockticks = reads = writes = 0;
 
     step6502(cpu);
 }
 
 int interrupt() {
     context_6502 f6502;
+
+    test_init(&f6502);
 
     // It doesn't matter what we set f6502.cpu.flags to here, but valgrind checks
     // that each bit is initialised.
@@ -112,8 +136,8 @@ int interrupt() {
     mem_write(&f6502, 0xffff, 0x60);
 
     // On reset, a 6502 initialises the stack pointer to 0xFD, and jumps to the
-    // address at 0xfffc. Also, the interrupt flag is cleared.
-    f6502.cpu.flags &= ~0x04;
+    // address at 0xfffc. Also, the interrupt flag is set.
+    clearinterrupt(&f6502);
     reset6502(&f6502);
     CHECK(cpu.s, 0x00fd);
     CHECK(cpu.pc, 0x5000);
@@ -126,7 +150,7 @@ int interrupt() {
     CHECK(cpu.pc, 0x5000);
 
     // Enable interrupts and try again
-    f6502.cpu.flags &= ~0x04;
+    clearinterrupt(&f6502);
     irq6502(&f6502);
 
     // On IRQ, a 6502 pushes the PC and flags onto the stack and then fetches PC
@@ -147,7 +171,7 @@ int interrupt() {
 
     CHECKFLAG(FLAG_INTERRUPT, 1);
 
-    return 0;
+    return(0);
 }
 
 
@@ -158,16 +182,21 @@ int interrupt() {
 int zp() {
     context_6502 f6502;
 
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     exec_instruction(&f6502, 0xa5, 0x03, 0x00);
 
     CHECK(cpu.pc, 0x0202);
     CHECK(emu.ea, 0x0003);
-    return 0;
+
+    return(0);
 }
 
 int zpx() {
     context_6502 f6502;
+
+    test_init(&f6502);
 
     f6502.cpu.x = 1;
     f6502.cpu.y = 1;
@@ -181,7 +210,7 @@ int zpx() {
     CHECK(cpu.pc, 0x0204);
     CHECK(emu.ea, 0x0000);
 
-    exec_instruction(&f6502, 0xb6, 0x03, 0x00); // lda $03,x
+    exec_instruction(&f6502, 0xb6, 0x03, 0x00); // ldx $03,y
     CHECK(cpu.pc, 0x0206);
     CHECK(emu.ea, 0x0004);
 
@@ -189,15 +218,22 @@ int zpx() {
     CHECK(cpu.pc, 0x0208);
     CHECK(emu.ea, 0x0000);
 
-    return 0;
+    return(0);
 }
 
 int decimal_mode() {
     context_6502 f6502;
 
+    test_init(&f6502);
+
     f6502.cpu.a = 0x89;
     f6502.cpu.pc = 0x200;
-    f6502.cpu.flags = 0x08; // Turn on decimal mode, clear carry flag
+    f6502.cpu.flags = 0x00;
+
+// Turn on decimal mode, clear carry flag
+
+setdecimal(&f6502);
+clearcarry(&f6502);
 
     exec_instruction(&f6502, 0x69, 0x01, 0x00); // ADC #$01
     CHECK(cpu.pc, 0x202);
@@ -221,15 +257,22 @@ int decimal_mode() {
     CHECK(cpu.pc, 0x20a);
     CHECK(cpu.a, 0x88);
 
-    return 0;
+    return(0);
 }
 
 int binary_mode() {
     context_6502 f6502;
 
+    test_init(&f6502);
+
     f6502.cpu.a = 0x89;
     f6502.cpu.pc = 0x200;
-    f6502.cpu.flags = 0x00; // Turn off decimal mode, clear carry flag
+    f6502.cpu.flags = 0x00;
+
+// Turn off decimal mode, clear carry flag
+
+cleardecimal(&f6502);
+clearcarry(&f6502);
 
     exec_instruction(&f6502, 0x69, 0x01, 0x00); // ADC #$01
     CHECK(cpu.pc, 0x202);
@@ -253,11 +296,14 @@ int binary_mode() {
     CHECK(cpu.pc, 0x20a);
     CHECK(cpu.a, 0x8c);
 
-    return 0;
+    return(0);
 }
 
 int pushpull() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.a = 0x89;
     f6502.cpu.s = 0xff;
     f6502.cpu.pc = 0x0200;
@@ -272,11 +318,14 @@ int pushpull() {
     exec_instruction(&f6502, 0x60, 0x00, 0x00); // RTS
     CHECK(cpu.s, 0xff);
     CHECK(cpu.pc, 0x4001);
-    return 0;
+
+    return(0);
 }
 
 int rotations() {
     context_6502 f6502;
+
+    test_init(&f6502);
 
     f6502.cpu.a = 0x01;
     f6502.cpu.flags = 0x00;
@@ -297,11 +346,15 @@ int rotations() {
     exec_instruction(&f6502, 0x4a, 0x00, 0x00); // LSR A
     CHECK(cpu.a, 0x00);
     CHECK(cpu.pc, 0x0202);
-    return 0;
+
+    return(0);
 }
 
 int incdec() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.x = f6502.cpu.y = 0x80;
 
     mem_write(&f6502, 0x00, 0x00);
@@ -346,11 +399,14 @@ int incdec() {
     CHECKFLAG(FLAG_ZERO, 0);
     CHECKFLAG(FLAG_SIGN, 0);
 
-    return 0;
+    return(0);
 }
 
 int branches() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.flags = 0x00;
     f6502.cpu.pc = 0x0200;
     exec_instruction(&f6502, 0x10, 0x60, 0x00); // BPL *+$60
@@ -370,7 +426,15 @@ int branches() {
     exec_instruction(&f6502, 0xf0, 0xfa, 0x00); // BEQ *-$06
     CHECK(cpu.pc, 0x034a);
 
-    f6502.cpu.flags = FLAG_CARRY | FLAG_ZERO | FLAG_SIGN | FLAG_OVERFLOW;
+    f6502.cpu.flags = 0x00;
+
+    // set the carry, zero, sign and overflow flags
+
+    setcarry(&f6502);
+    setzero(&f6502);
+    setsign(&f6502);
+    setoverflow(&f6502);
+
     exec_instruction(&f6502, 0xb0, 0x70, 0x00); // BCS *+$70
     CHECK(cpu.pc, 0x03bc);
     exec_instruction(&f6502, 0xf0, 0xfa, 0x00); // BEQ *-$06
@@ -379,11 +443,15 @@ int branches() {
     CHECK(cpu.pc, 0x03ca);
     exec_instruction(&f6502, 0x70, 0xfa, 0x00); // BVS *-$06
     CHECK(cpu.pc, 0x03c6);
-    return 0;
+
+    return(0);
 }
 
 int comparisons() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.flags = 0x00;
     f6502.cpu.pc = 0x0200;
     f6502.cpu.a = 0x50;
@@ -410,22 +478,29 @@ int comparisons() {
     CHECKFLAG(FLAG_ZERO, 0);
     CHECKFLAG(FLAG_SIGN, 1);
 
-    return 0;
+    return(0);
 }
 
 int absolute() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.emu.clockticks = 0;
     f6502.cpu.pc = 0x200;
     exec_instruction(&f6502, 0xad, 0x60, 0x00);
     CHECK(emu.ea, 0x0060);
     CHECK(cpu.pc, 0x0203);
     CHECK(emu.clockticks, 4);
-    return 0;
+
+    return(0);
 }
 
 int absolute_x() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.x = 0x80;
     f6502.emu.clockticks = 0;
@@ -454,11 +529,15 @@ int absolute_x() {
     CHECK(emu.ea, 0x0120);
     CHECK(cpu.pc, 0x020c);
     CHECK(emu.clockticks, 5);
-    return 0;
+
+    return(0);
 }
 
 int absolute_y() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.y = 0x80;
     f6502.emu.clockticks = 0;
@@ -487,11 +566,15 @@ int absolute_y() {
     CHECK(emu.ea, 0x0120);
     CHECK(cpu.pc, 0x020c);
     CHECK(emu.clockticks, 5);
-    return 0;
+
+    return(0);
 }
 
 int indirect() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     mem_write(&f6502, 0x8000, 0x01);
     mem_write(&f6502, 0x80fe, 0x02);
@@ -503,11 +586,14 @@ int indirect() {
     CHECK(cpu.pc, 0x0103);
     CHECK(emu.clockticks, 5);
 
-    return 0;
+    return(0);
 }
 
 int indirect_y() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.y = 0x80;
     mem_write(&f6502, 0x20, 0x81);
@@ -544,11 +630,14 @@ int indirect_y() {
     CHECK(cpu.pc, 0x0208);
     CHECK(emu.clockticks, 6);
 
-    return 0;
+    return(0);
 }
 
 int indirect_x() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.x = 0x00;
     mem_write(&f6502, 0x20, 0x81);
@@ -579,11 +668,14 @@ int indirect_x() {
     CHECK(emu.ea, 0x2081);
     CHECK(emu.clockticks, 6);
 
-    return 0;
+    return(0);
 }
 
 int zpi() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.x = 0x59;
     mem_write(&f6502, 0x20, 0x81);
@@ -609,11 +701,14 @@ int zpi() {
     CHECK(emu.ea, 0x2081);
     CHECK(emu.clockticks, 5);
 
-    return 0;
+    return(0);
 }
 
 int flags() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.flags = 0xff;
 
@@ -635,11 +730,14 @@ int flags() {
     exec_instruction(&f6502, 0xb8, 0x00, 0x00);
     CHECKFLAG(FLAG_OVERFLOW, 0);
 
-    return 0;
+    return(0);
 }
 
 int loads() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
 
     exec_instruction(&f6502, 0xa0, 0x00, 0x00); // ldy #$00
@@ -658,11 +756,14 @@ int loads() {
     CHECKFLAG(FLAG_ZERO, 1);
     CHECKFLAG(FLAG_SIGN, 0);
 
-    return 0;
+    return(0);
 }
 
 int transfers() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.flags = 0x00;
 
@@ -700,11 +801,13 @@ int transfers() {
     CHECKFLAG(FLAG_SIGN, 0);
     CHECK(cpu.a, 0x01);
 
-    return 0;
+    return(0);
 }
 
 int and_opcode() {
     context_6502 f6502;
+
+    test_init(&f6502);
 
     f6502.cpu.a = 0xff;
     f6502.cpu.flags = 0x00;
@@ -726,11 +829,13 @@ int and_opcode() {
     CHECKFLAG(FLAG_ZERO, 1);
     CHECKFLAG(FLAG_SIGN, 0);
 
-    return 0;
+    return(0);
 }
 
 int asl_opcode() {
     context_6502 f6502;
+
+    test_init(&f6502);
 
     f6502.cpu.a = 0x50;
     f6502.cpu.flags = 0x00;
@@ -761,11 +866,13 @@ int asl_opcode() {
     CHECKFLAG(FLAG_SIGN, 0);
     CHECKFLAG(FLAG_CARRY, 1);
 
-    return 0;
+    return(0);
 }
 
 int bit_opcode() {
     context_6502 f6502;
+
+    test_init(&f6502);
 
     f6502.cpu.a = 0x50;
     f6502.cpu.flags = 0x00;
@@ -788,11 +895,13 @@ int bit_opcode() {
     CHECKFLAG(FLAG_CARRY, 0);
     CHECK(cpu.pc, 0x0205);
 
-    return 0;
+    return(0);
 }
 
 int bit_imm_opcode() {
     context_6502 f6502;
+
+    test_init(&f6502);
 
     f6502.cpu.a = 0x50;
     f6502.cpu.flags = 0x00;
@@ -812,14 +921,23 @@ int bit_imm_opcode() {
     CHECKFLAG(FLAG_CARRY, 0);
     CHECK(cpu.pc, 0x0204);
 
-    return 0;
+    return(0);
 }
 
 int brk_opcode() {
     context_6502 f6502;
-    reset6502(&f6502);
 
-    f6502.cpu.flags = FLAG_ZERO | FLAG_SIGN | FLAG_CARRY | FLAG_OVERFLOW;
+    test_init(&f6502);
+
+    f6502.cpu.flags = 0x00;
+
+    // set the carry, zero, sign and overflow flags
+
+    setcarry(&f6502);
+    setzero(&f6502);
+    setsign(&f6502);
+    setoverflow(&f6502);
+
     f6502.cpu.pc = 0x200;
     mem_write(&f6502, 0xfffe, 0x00);
     mem_write(&f6502, 0xffff, 0x60);
@@ -839,12 +957,13 @@ int brk_opcode() {
     CHECKMEM(0x01fb, FLAG_ZERO | FLAG_SIGN | FLAG_CARRY | FLAG_OVERFLOW |
                          FLAG_BREAK | FLAG_CONSTANT);
 
-    return 0;
+    return(0);
 }
 
 int eor_opcode() {
     context_6502 f6502;
-    reset6502(&f6502);
+
+    test_init(&f6502);
 
     f6502.cpu.flags = 0;
     f6502.cpu.pc = 0x200;
@@ -860,12 +979,13 @@ int eor_opcode() {
     CHECKFLAG(FLAG_ZERO, 1);
     CHECK(cpu.a, 0x00);
 
-    return 0;
+    return(0);
 }
 
 int jsr_opcode() {
     context_6502 f6502;
-    reset6502(&f6502);
+
+    test_init(&f6502);
 
     f6502.cpu.flags = 0;
     f6502.cpu.pc = 0x300;
@@ -886,19 +1006,25 @@ int jsr_opcode() {
     // immediately after the JSR instruction)
     CHECK(cpu.pc, 0x303);
 
-    return 0;
+    return(0);
 }
 
 int rla_opcode() {
     context_6502 f6502;
 
+    test_init(&f6502);
+
     f6502.cpu.a = 0x23;
-    f6502.cpu.flags = 0xf6; // Turn off the carry flag and decimal mode
+    f6502.cpu.flags = 0xff;
+
+    // Turn off the carry flag and decimal mode
+
+    clearcarry(&f6502);
+    cleardecimal(&f6502);
+
     mem_write(&f6502, 0x01, 0x12);
 
     f6502.cpu.pc = 0x200;
-    reads = 0;
-    writes = 0;
     exec_instruction(&f6502, 0x27, 0x01, 0x00);
 
     CHECKCYCLES(3, 2);
@@ -907,19 +1033,26 @@ int rla_opcode() {
     CHECK(cpu.pc, 0x0202);
     CHECK(emu.ea, 0x0001);
     CHECK(cpu.a, 0x20);
-    return 0;
+
+    return(0);
 }
 
 int rra_opcode() {
     context_6502 f6502;
 
+    test_init(&f6502);
+
     f6502.cpu.a = 0x3;
-    f6502.cpu.flags = 0xf6; // Turn off the carry flag and decimal mode
+    f6502.cpu.flags = 0xff;
+
+    // Turn off the carry flag and decimal mode
+
+    clearcarry(&f6502);
+    cleardecimal(&f6502);
+
     mem_write(&f6502, 0x01, 0x02);
 
     f6502.cpu.pc = 0x200;
-    reads = 0;
-    writes = 0;
     exec_instruction(&f6502, 0x67, 0x01, 0x00);
 
     CHECKCYCLES(3, 2);
@@ -928,18 +1061,26 @@ int rra_opcode() {
     CHECK(cpu.pc, 0x0202);
     CHECK(emu.ea, 0x0001);
     CHECK(cpu.a, 0x04);
-    return 0;
+
+    return(0);
 }
 
 int nop_opcode() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     exec_instruction(&f6502, 0xea, 0x00, 0x00); // nop
-    return 0;
+
+    return(0);
 }
 
 int ora_opcode() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.a = 0x00;
     exec_instruction(&f6502, 0x09, 0x00, 0x00); // ora #$00
@@ -958,14 +1099,22 @@ int ora_opcode() {
     CHECKFLAG(FLAG_SIGN, 1);
     CHECKFLAG(FLAG_ZERO, 0);
     CHECK(cpu.a, 0x83);
-    return 0;
+
+    return(0);
 }
 
 int rol_opcode() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.a = 0x20;
-    f6502.cpu.flags = 0x00; // Make sure Carry's clear
+    f6502.cpu.flags = 0x00;
+
+// Make sure Carry's clear
+
+clearcarry(&f6502);
 
     exec_instruction(&f6502, 0x2a, 0x00, 0x00); // rol
     CHECKFLAG(FLAG_CARRY, 0);
@@ -986,11 +1135,15 @@ int rol_opcode() {
     CHECKFLAG(FLAG_CARRY, 0);
     CHECKFLAG(FLAG_SIGN, 0);
     CHECK(cpu.a, 0x01);
-    return 0;
+
+    return(0);
 }
 
 int rti_opcode() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.a = 0x20;
     f6502.cpu.flags = 0x00;
@@ -1011,16 +1164,20 @@ int rti_opcode() {
     CHECKFLAG(FLAG_DECIMAL, 0);
     CHECKFLAG(FLAG_OVERFLOW, 0);
 
-    return 0;
+    return(0);
 }
 
 int sax_opcode() {
     context_6502 f6502;
+    uint8_t address;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.a = 0x03;
     f6502.cpu.x = 0x06;
     f6502.cpu.flags = 0x00;
-    uint8_t address = 0xff;
+    address = 0xff;
 
     mem_write(&f6502, address, 0x03);
 
@@ -1028,15 +1185,19 @@ int sax_opcode() {
     CHECK(cpu.pc, 0x0202);
     CHECKMEM(address, 0x02);
 
-    return 0;
+    return(0);
 }
 
 int sta_opcode() {
     context_6502 f6502;
+    uint8_t address;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.a = 0x20;
     f6502.cpu.flags = 0x00;
-    uint8_t address = 0xff;
+    address = 0xff;
 
     mem_write(&f6502, address, 0x03);
 
@@ -1044,15 +1205,19 @@ int sta_opcode() {
     CHECK(cpu.pc, 0x0202);
     CHECKMEM(address, 0x20);
 
-    return 0;
+    return(0);
 }
 
 int stx_opcode() {
     context_6502 f6502;
+    uint8_t address;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.x = 0x80;
     f6502.cpu.flags = 0x00;
-    uint8_t address = 0xff;
+    address = 0xff;
 
     mem_write(&f6502, address, 0x03);
 
@@ -1060,15 +1225,19 @@ int stx_opcode() {
     CHECK(cpu.pc, 0x0202);
     CHECKMEM(address, 0x80);
 
-    return 0;
+    return(0);
 }
 
 int sty_opcode() {
     context_6502 f6502;
+    uint8_t address;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.y = 0x01;
     f6502.cpu.flags = 0x00;
-    uint8_t address = 0xff;
+    address = 0xff;
 
     mem_write(&f6502, 0xff, 0x03);
 
@@ -1076,14 +1245,18 @@ int sty_opcode() {
     CHECK(cpu.pc, 0x0202);
     CHECKMEM(address, 0x01);
 
-    return 0;
+    return(0);
 }
 
 int stz_opcode() {
     context_6502 f6502;
+    uint8_t address;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     f6502.cpu.flags = 0x00;
-    uint8_t address = 0xff;
+    address = 0xff;
 
     mem_write(&f6502, 0xff, 0x03);
 
@@ -1091,11 +1264,13 @@ int stz_opcode() {
     CHECK(cpu.pc, 0x0202);
     CHECKMEM(address, 0);
 
-    return 0;
+    return(0);
 }
 
 int sre_opcode() {
     context_6502 f6502;
+
+    test_init(&f6502);
 
     f6502.cpu.a = 0x3;
     f6502.cpu.pc = 0x200;
@@ -1107,11 +1282,15 @@ int sre_opcode() {
     CHECK(cpu.pc, 0x0202);
     CHECK(emu.ea, 0x0001);
     CHECK(cpu.a, 0x02);
-    return 0;
+
+    return(0);
 }
 
 int lax_opcode() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
 
     mem_write(&f6502, 0xab, 0x00);
@@ -1129,7 +1308,7 @@ int lax_opcode() {
     CHECKFLAG(FLAG_ZERO, 0);
     CHECKFLAG(FLAG_SIGN, 1);
 
-    return 0;
+    return(0);
 }
 
 /*
@@ -1140,6 +1319,9 @@ int lax_opcode() {
 
 int cmos_jmp_indirect() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x200;
     mem_write(&f6502, 0x8000, 0x01);
     mem_write(&f6502, 0x80fe, 0x02);
@@ -1151,11 +1333,14 @@ int cmos_jmp_indirect() {
     CHECK(cpu.pc, 0x0403);
     CHECK(emu.clockticks, 6);
 
-    return 0;
+    return(0);
 }
 
 int cmos_jmp_absxi() {
     context_6502 f6502;
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x0200;
     f6502.cpu.x = 0xff;
     mem_write(&f6502, 0x1456, 0xcd);
@@ -1163,12 +1348,15 @@ int cmos_jmp_absxi() {
     exec_instruction(&f6502, 0x7c, 0x57, 0x13);
     CHECK(cpu.pc, 0xabcd);
     CHECK(emu.clockticks, 6);
-    return 0;
+
+    return(0);
 }
 
 int pushme_pullyou() {
     context_6502 f6502;
-    reset6502(&f6502);
+
+    test_init(&f6502);
+
     f6502.cpu.pc = 0x0200;
     f6502.cpu.x = 0xff;
     f6502.cpu.y = 0x01;
@@ -1203,7 +1391,7 @@ int pushme_pullyou() {
     CHECK(cpu.s, 0xfd);
     CHECK(cpu.x, (FLAG_SIGN | FLAG_CARRY | FLAG_CONSTANT | FLAG_BREAK));
 
-    return 0;
+    return(0);
 }
 
 
@@ -1271,13 +1459,17 @@ int run_tests(test_t tests[]) {
 }
 
 int main(int argc, char **argv) {
-    run_tests(tests);
+  run_tests(tests);
+
   if (argc >= 2) {
     if (!strcmp(argv[1], "cmos"))
         run_tests(cmos_tests);
+
     if (!strcmp(argv[1], "nmos"))
         run_tests(nmos_tests);
   }
+
+  return(0);
 }
 
 
