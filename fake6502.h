@@ -42,19 +42,19 @@ extern "C" {
 
 // flag modifier macros
 
-#define setcarry(c)                     c->cpu.flags |= FLAG_CARRY
-#define clearcarry(c)                   c->cpu.flags &= (~FLAG_CARRY)
-#define setzero(c)                      c->cpu.flags |= FLAG_ZERO
-#define clearzero(c)                    c->cpu.flags &= (~FLAG_ZERO)
-#define setinterrupt(c)                 c->cpu.flags |= FLAG_INTERRUPT
-#define clearinterrupt(c)               c->cpu.flags &= (~FLAG_INTERRUPT)
-#define setdecimal(c)                   c->cpu.flags |= FLAG_DECIMAL
-#define cleardecimal(c)                 c->cpu.flags &= (~FLAG_DECIMAL)
-#define setoverflow(c)                  c->cpu.flags |= FLAG_OVERFLOW
-#define clearoverflow(c)                c->cpu.flags &= (~FLAG_OVERFLOW)
-#define setsign(c)                      c->cpu.flags |= FLAG_SIGN
-#define clearsign(c)                    c->cpu.flags &= (~FLAG_SIGN)
-#define saveaccum(c, n)                 c->cpu.a = (uint8_t)((n)&0x00FF)
+#define setcarry(c)                     (c)->cpu.flags |= FLAG_CARRY
+#define clearcarry(c)                   (c)->cpu.flags &= (~FLAG_CARRY)
+#define setzero(c)                      (c)->cpu.flags |= FLAG_ZERO
+#define clearzero(c)                    (c)->cpu.flags &= (~FLAG_ZERO)
+#define setinterrupt(c)                 (c)->cpu.flags |= FLAG_INTERRUPT
+#define clearinterrupt(c)               (c)->cpu.flags &= (~FLAG_INTERRUPT)
+#define setdecimal(c)                   (c)->cpu.flags |= FLAG_DECIMAL
+#define cleardecimal(c)                 (c)->cpu.flags &= (~FLAG_DECIMAL)
+#define setoverflow(c)                  (c)->cpu.flags |= FLAG_OVERFLOW
+#define clearoverflow(c)                (c)->cpu.flags &= (~FLAG_OVERFLOW)
+#define setsign(c)                      (c)->cpu.flags |= FLAG_SIGN
+#define clearsign(c)                    (c)->cpu.flags &= (~FLAG_SIGN)
+#define saveaccum(c, n)                 (c)->cpu.a = (uint8_t)((n)&0x00FF)
 
 
 // flag calculation macros
