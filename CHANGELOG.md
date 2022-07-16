@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [2.3.0] - 16-07-2022
+
+Updated all global names to have a common prefix: fake6502_
+to avoid conflicts with any other source files.
+
+Changed the naming convention to be prefix_object_action:
+
+setcarry -> fake6502_carry_set, etc...
+
+zerocalc -> fake6502_zero_calc, etc...
+
+
+
 ## [2.2.0] - 22-06-2022
 
 Updated the documentation, created this CHANGELOG.md file.

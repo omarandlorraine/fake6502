@@ -21,16 +21,16 @@ extern "C" {
 // define's
 // -------------------------------------------------------------------
 
-#define FAKE6502_FLAG_CARRY             0x01
-#define FAKE6502_FLAG_ZERO              0x02
-#define FAKE6502_FLAG_INTERRUPT         0x04
-#define FAKE6502_FLAG_DECIMAL           0x08
-#define FAKE6502_FLAG_BREAK             0x10
-#define FAKE6502_FLAG_CONSTANT          0x20
-#define FAKE6502_FLAG_OVERFLOW          0x40
-#define FAKE6502_FLAG_SIGN              0x80
+#define FAKE6502_CARRY_FLAG             0x01
+#define FAKE6502_ZERO_FLAG              0x02
+#define FAKE6502_INTERRUPT_FLAG         0x04
+#define FAKE6502_DECIMAL_FLAG           0x08
+#define FAKE6502_BREAK_FLAG             0x10
+#define FAKE6502_CONSTANT_FLAG          0x20
+#define FAKE6502_OVERFLOW_FLAG          0x40
+#define FAKE6502_SIGN_FLAG              0x80
 
-#define FAKE6502_BASE_STACK             0x100
+#define FAKE6502_STACK_BASE             0x100
 
 
 // -------------------------------------------------------------------
@@ -42,45 +42,46 @@ extern "C" {
 
 // flag modifier macros
 
-#define fake6502_set_carry(c)           (c)->cpu.flags |= FAKE6502_FLAG_CARRY
-#define fake6502_clear_carry(c)         (c)->cpu.flags &= (~FAKE6502_FLAG_CARRY)
-#define fake6502_set_zero(c)            (c)->cpu.flags |= FAKE6502_FLAG_ZERO
-#define fake6502_clear_zero(c)          (c)->cpu.flags &= (~FAKE6502_FLAG_ZERO)
-#define fake6502_set_interrupt(c)       (c)->cpu.flags |= FAKE6502_FLAG_INTERRUPT
-#define fake6502_clear_interrupt(c)     (c)->cpu.flags &= (~FAKE6502_FLAG_INTERRUPT)
-#define fake6502_set_decimal(c)         (c)->cpu.flags |= FAKE6502_FLAG_DECIMAL
-#define fake6502_clear_decimal(c)       (c)->cpu.flags &= (~FAKE6502_FLAG_DECIMAL)
-#define fake6502_set_overflow(c)        (c)->cpu.flags |= FAKE6502_FLAG_OVERFLOW
-#define fake6502_clear_overflow(c)      (c)->cpu.flags &= (~FAKE6502_FLAG_OVERFLOW)
-#define fake6502_set_sign(c)            (c)->cpu.flags |= FAKE6502_FLAG_SIGN
-#define fake6502_clear_sign(c)          (c)->cpu.flags &= (~FAKE6502_FLAG_SIGN)
-#define fake6502_save_accum(c, n)       (c)->cpu.a = (uint8_t)((n)&0x00FF)
+#define fake6502_carry_set(c)           (c)->cpu.flags |= FAKE6502_CARRY_FLAG
+#define fake6502_carry_clear(c)         (c)->cpu.flags &= (~FAKE6502_CARRY_FLAG)
+#define fake6502_zero_set(c)            (c)->cpu.flags |= FAKE6502_ZERO_FLAG
+#define fake6502_zero_clear(c)          (c)->cpu.flags &= (~FAKE6502_ZERO_FLAG)
+#define fake6502_interrupt_set(c)       (c)->cpu.flags |= FAKE6502_INTERRUPT_FLAG
+#define fake6502_interrupt_clear(c)     (c)->cpu.flags &= (~FAKE6502_INTERRUPT_FLAG)
+#define fake6502_decimal_set(c)         (c)->cpu.flags |= FAKE6502_DECIMAL_FLAG
+#define fake6502_decimal_clear(c)       (c)->cpu.flags &= (~FAKE6502_DECIMAL_FLAG)
+#define fake6502_overflow_set(c)        (c)->cpu.flags |= FAKE6502_OVERFLOW_FLAG
+#define fake6502_overflow_clear(c)      (c)->cpu.flags &= (~FAKE6502_OVERFLOW_FLAG)
+#define fake6502_sign_set(c)            (c)->cpu.flags |= FAKE6502_SIGN_FLAG
+#define fake6502_sign_clear(c)          (c)->cpu.flags &= (~FAKE6502_SIGN_FLAG)
+
+#define fake6502_accum_save(c, n)       (c)->cpu.a = (uint8_t)((n)&0x00FF)
 
 
 // flag calculation macros
 
 #define fake6502_zero_calc(c, n)        \
 {                                       \
-    if ((n)&0x00FF)                     \
-        fake6502_clear_zero(c);         \
+    if ((n) & 0x00FF)                   \
+        fake6502_zero_clear(c);         \
     else                                \
-        fake6502_set_zero(c);           \
+        fake6502_zero_set(c);           \
 }
 
 #define fake6502_sign_calc(c, n)        \
 {                                       \
-    if ((n)&0x0080)                     \
-        fake6502_set_sign(c);           \
+    if ((n) & 0x0080)                   \
+        fake6502_sign_set(c);           \
     else                                \
-        fake6502_clear_sign(c);         \
+        fake6502_sign_clear(c);         \
 }
 
 #define fake6502_carry_calc(c, n)       \
 {                                       \
-    if ((n)&0xFF00)                     \
-        fake6502_set_carry(c);          \
+    if ((n) & 0xFF00)                   \
+        fake6502_carry_set(c);          \
     else                                \
-        fake6502_clear_carry(c);        \
+        fake6502_carry_clear(c);        \
 }
 
 
@@ -89,9 +90,9 @@ extern "C" {
 #define fake6502_overflow_calc(c, n, m, o)  \
 {                                       \
     if (((n) ^ (uint16_t)(m)) & ((n) ^ (o)) & 0x0080)  \
-        fake6502_set_overflow(c);       \
+        fake6502_overflow_set(c);       \
     else                                \
-        fake6502_clear_overflow(c);     \
+        fake6502_overflow_clear(c);     \
 }
 
 
@@ -99,25 +100,25 @@ extern "C" {
 // typedef's
 // -------------------------------------------------------------------
 
-typedef struct fake6502_state_cpu {
+typedef struct fake6502_cpu_state {
     uint8_t a;
     uint8_t x;
     uint8_t y;
     uint8_t flags;
     uint8_t s;
     uint16_t pc;
-} fake6502_state_cpu;
+} fake6502_cpu_state;
 
-typedef struct fake6502_state_emu {
+typedef struct fake6502_emu_state {
     int instructions;
     int clockticks;
     uint16_t ea;
     uint8_t opcode;
-} fake6502_state_emu;
+} fake6502_emu_state;
 
 typedef struct fake6502_context {
-    fake6502_state_cpu cpu;
-    fake6502_state_emu emu;
+    fake6502_cpu_state cpu;
+    fake6502_emu_state emu;
     void *state_host;
 } fake6502_context;
 

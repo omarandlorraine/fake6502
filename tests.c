@@ -137,12 +137,12 @@ int interrupt() {
 
     // On reset, a 6502 initialises the stack pointer to 0xFD, and jumps to the
     // address at 0xfffc. Also, the interrupt flag is set.
-    fake6502_clear_interrupt(&f6502);
+    fake6502_interrupt_clear(&f6502);
     fake6502_reset(&f6502);
     CHECK(cpu.s, 0x00fd);
     CHECK(cpu.pc, 0x5000);
 
-    CHECKFLAG(FAKE6502_FLAG_INTERRUPT, 1);
+    CHECKFLAG(FAKE6502_INTERRUPT_FLAG, 1);
 
     // This IRQ shouldn't fire because the interrupts are disabled
     fake6502_irq(&f6502);
@@ -150,7 +150,7 @@ int interrupt() {
     CHECK(cpu.pc, 0x5000);
 
     // Enable interrupts and try again
-    fake6502_clear_interrupt(&f6502);
+    fake6502_interrupt_clear(&f6502);
     fake6502_irq(&f6502);
 
     // On IRQ, a 6502 pushes the PC and flags onto the stack and then fetches PC
@@ -162,14 +162,14 @@ int interrupt() {
     CHECKMEM(0x01fc, 0x00);
     CHECKMEM(0x01fb, f6502.cpu.flags & 0xeb);
 
-    CHECKFLAG(FAKE6502_FLAG_INTERRUPT, 1);
+    CHECKFLAG(FAKE6502_INTERRUPT_FLAG, 1);
 
     // The NMI may fire even when the Interrupt flag is set
     fake6502_nmi(&f6502);
     CHECK(cpu.s, 0x00f7);
     CHECK(cpu.pc, 0x4000);
 
-    CHECKFLAG(FAKE6502_FLAG_INTERRUPT, 1);
+    CHECKFLAG(FAKE6502_INTERRUPT_FLAG, 1);
 
     return(0);
 }
@@ -232,8 +232,8 @@ int decimal_mode() {
 
     // Turn on decimal mode, clear carry flag
 
-    fake6502_set_decimal(&f6502);
-    fake6502_clear_carry(&f6502);
+    fake6502_decimal_set(&f6502);
+    fake6502_carry_clear(&f6502);
 
     exec_instruction(&f6502, 0x69, 0x01, 0x00); // ADC #$01
     CHECK(cpu.pc, 0x202);
@@ -271,8 +271,8 @@ int binary_mode() {
 
     // Turn off decimal mode, clear carry flag
 
-    fake6502_clear_decimal(&f6502);
-    fake6502_clear_carry(&f6502);
+    fake6502_decimal_clear(&f6502);
+    fake6502_carry_clear(&f6502);
 
     exec_instruction(&f6502, 0x69, 0x01, 0x00); // ADC #$01
     CHECK(cpu.pc, 0x202);
@@ -363,41 +363,41 @@ int incdec() {
 
     exec_instruction(&f6502, 0xc6, 0x00, 0x00); // DEC $0
     CHECK(cpu.pc, 0x0202);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
 
     exec_instruction(&f6502, 0xe6, 0x00, 0x00); // INC $0
     CHECK(cpu.pc, 0x0204);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     exec_instruction(&f6502, 0xe8, 0x00, 0x00); // INX
     CHECK(cpu.pc, 0x0205);
     CHECK(cpu.x, 0x81);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
 
     exec_instruction(&f6502, 0x88, 0x00, 0x00); // DEY
     CHECK(cpu.pc, 0x0206);
     CHECK(cpu.y, 0x7f);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     f6502.cpu.x = 0x00;
     exec_instruction(&f6502, 0xca, 0x00, 0x00); // DEX
     CHECK(cpu.pc, 0x0207);
     CHECK(cpu.y, 0x7f);
     CHECK(cpu.x, 0xff);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
 
     f6502.cpu.y = 0x00;
     exec_instruction(&f6502, 0xc8, 0x00, 0x00); // INY
     CHECK(cpu.pc, 0x0208);
     CHECK(cpu.y, 0x01);
     CHECK(cpu.x, 0xff);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     return(0);
 }
@@ -430,10 +430,10 @@ int branches() {
 
     // set the carry, zero, sign and overflow flags
 
-    fake6502_set_carry(&f6502);
-    fake6502_set_zero(&f6502);
-    fake6502_set_sign(&f6502);
-    fake6502_set_overflow(&f6502);
+    fake6502_carry_set(&f6502);
+    fake6502_zero_set(&f6502);
+    fake6502_sign_set(&f6502);
+    fake6502_overflow_set(&f6502);
 
     exec_instruction(&f6502, 0xb0, 0x70, 0x00); // BCS *+$70
     CHECK(cpu.pc, 0x03bc);
@@ -459,24 +459,24 @@ int comparisons() {
     f6502.cpu.y = 0xc0;
 
     exec_instruction(&f6502, 0xc9, 0x00, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 1);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     exec_instruction(&f6502, 0xc9, 0x51, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 0);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
 
     exec_instruction(&f6502, 0xe0, 0x00, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 1);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     exec_instruction(&f6502, 0xc0, 0x01, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 1);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
 
     return(0);
 }
@@ -713,22 +713,22 @@ int flags() {
     f6502.cpu.flags = 0xff;
 
     exec_instruction(&f6502, 0x18, 0x00, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
     exec_instruction(&f6502, 0x38, 0x00, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 1);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
 
     exec_instruction(&f6502, 0x58, 0x00, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_INTERRUPT, 0);
+    CHECKFLAG(FAKE6502_INTERRUPT_FLAG, 0);
     exec_instruction(&f6502, 0x78, 0x00, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_INTERRUPT, 1);
+    CHECKFLAG(FAKE6502_INTERRUPT_FLAG, 1);
 
     exec_instruction(&f6502, 0xd8, 0x00, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_DECIMAL, 0);
+    CHECKFLAG(FAKE6502_DECIMAL_FLAG, 0);
     exec_instruction(&f6502, 0xf8, 0x00, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_DECIMAL, 1);
+    CHECKFLAG(FAKE6502_DECIMAL_FLAG, 1);
 
     exec_instruction(&f6502, 0xb8, 0x00, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_OVERFLOW, 0);
+    CHECKFLAG(FAKE6502_OVERFLOW_FLAG, 0);
 
     return(0);
 }
@@ -741,20 +741,20 @@ int loads() {
     f6502.cpu.pc = 0x200;
 
     exec_instruction(&f6502, 0xa0, 0x00, 0x00); // ldy #$00
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     exec_instruction(&f6502, 0xa0, 0x80, 0x00); // ldy #$80
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
 
     exec_instruction(&f6502, 0xa0, 0x7f, 0x00); // ldy #$7f
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     exec_instruction(&f6502, 0xa2, 0x00, 0x00); // ldx #$ff
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     return(0);
 }
@@ -770,35 +770,35 @@ int transfers() {
     f6502.cpu.x = 0x80;
 
     exec_instruction(&f6502, 0x9a, 0x00, 0x00); // txs
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
     CHECK(cpu.s, 0x80);
 
     exec_instruction(&f6502, 0x8a, 0x00, 0x00); // txa
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
     CHECK(cpu.a, 0x80);
 
     f6502.cpu.a = 0x1;
     exec_instruction(&f6502, 0xaa, 0x00, 0x00); // tax
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
     CHECK(cpu.x, 0x01);
 
     exec_instruction(&f6502, 0xba, 0x80, 0x00); // tsx
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
     CHECK(cpu.x, 0x80);
 
     exec_instruction(&f6502, 0xa8, 0x00, 0x00); // tay
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
     CHECK(cpu.y, 0x01);
 
     f6502.cpu.a = 0x80;
     exec_instruction(&f6502, 0x98, 0x00, 0x00); // tya
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
     CHECK(cpu.a, 0x01);
 
     return(0);
@@ -815,19 +815,19 @@ int and_opcode() {
 
     exec_instruction(&f6502, 0x29, 0xe1, 0x00);
     CHECK(cpu.a, 0xe1);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
     CHECK(cpu.pc, 0x0202);
 
     exec_instruction(&f6502, 0x29, 0x71, 0x00);
     CHECK(cpu.a, 0x61);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     exec_instruction(&f6502, 0x29, 0x82, 0x00);
     CHECK(cpu.a, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     return(0);
 }
@@ -843,28 +843,28 @@ int asl_opcode() {
 
     exec_instruction(&f6502, 0x0a, 0x00, 0x00);
     CHECK(cpu.a, 0xa0);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
     CHECK(cpu.pc, 0x0201);
 
     exec_instruction(&f6502, 0x0a, 0x00, 0x00);
     CHECK(cpu.a, 0x40);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
 
     exec_instruction(&f6502, 0x0a, 0x00, 0x00);
     CHECK(cpu.a, 0x80);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
 
     exec_instruction(&f6502, 0x0a, 0x00, 0x00);
     CHECK(cpu.a, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
 
     return(0);
 }
@@ -881,18 +881,18 @@ int bit_opcode() {
 
     exec_instruction(&f6502, 0x24, 0xff, 0x00);
     CHECK(cpu.a, 0x50);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
     CHECK(cpu.pc, 0x0202);
 
     f6502.cpu.a = 0x40;
     fake6502_mem_write(&f6502, 0xff, 0x40);
     exec_instruction(&f6502, 0x2c, 0xff, 0x00);
     CHECK(cpu.a, 0x40);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
     CHECK(cpu.pc, 0x0205);
 
     return(0);
@@ -909,16 +909,16 @@ int bit_imm_opcode() {
 
     exec_instruction(&f6502, 0x89, 0xff, 0x00);
     CHECK(cpu.a, 0x50);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
     CHECK(cpu.pc, 0x0202);
 
     exec_instruction(&f6502, 0x89, 0x80, 0x00);
     CHECK(cpu.a, 0x50);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
     CHECK(cpu.pc, 0x0204);
 
     return(0);
@@ -933,29 +933,29 @@ int brk_opcode() {
 
     // set the carry, zero, sign and overflow flags
 
-    fake6502_set_carry(&f6502);
-    fake6502_set_zero(&f6502);
-    fake6502_set_sign(&f6502);
-    fake6502_set_overflow(&f6502);
+    fake6502_carry_set(&f6502);
+    fake6502_zero_set(&f6502);
+    fake6502_sign_set(&f6502);
+    fake6502_overflow_set(&f6502);
 
     f6502.cpu.pc = 0x200;
     fake6502_mem_write(&f6502, 0xfffe, 0x00);
     fake6502_mem_write(&f6502, 0xffff, 0x60);
 
     exec_instruction(&f6502, 0x00, 0x00, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 1);
-    CHECKFLAG(FAKE6502_FLAG_INTERRUPT, 1);
-    CHECKFLAG(FAKE6502_FLAG_OVERFLOW, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
+    CHECKFLAG(FAKE6502_INTERRUPT_FLAG, 1);
+    CHECKFLAG(FAKE6502_OVERFLOW_FLAG, 1);
 
     CHECK(cpu.s, 0x00fa);
     CHECK(cpu.pc, 0x6000);
 
     CHECKMEM(0x01fd, 0x02);
     CHECKMEM(0x01fc, 0x02);
-    CHECKMEM(0x01fb, FAKE6502_FLAG_ZERO | FAKE6502_FLAG_SIGN | FAKE6502_FLAG_CARRY | FAKE6502_FLAG_OVERFLOW |
-                         FAKE6502_FLAG_BREAK | FAKE6502_FLAG_CONSTANT);
+    CHECKMEM(0x01fb, FAKE6502_ZERO_FLAG | FAKE6502_SIGN_FLAG | FAKE6502_CARRY_FLAG | FAKE6502_OVERFLOW_FLAG |
+                         FAKE6502_BREAK_FLAG | FAKE6502_CONSTANT_FLAG);
 
     return(0);
 }
@@ -970,13 +970,13 @@ int eor_opcode() {
     f6502.cpu.a = 0xf0;
 
     exec_instruction(&f6502, 0x49, 0x43, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
     CHECK(cpu.a, 0xb3);
 
     exec_instruction(&f6502, 0x49, 0xb3, 0x00);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
     CHECK(cpu.a, 0x00);
 
     return(0);
@@ -1019,8 +1019,8 @@ int rla_opcode() {
 
     // Turn off the carry flag and decimal mode
 
-    fake6502_clear_carry(&f6502);
-    fake6502_clear_decimal(&f6502);
+    fake6502_carry_clear(&f6502);
+    fake6502_decimal_clear(&f6502);
 
     fake6502_mem_write(&f6502, 0x01, 0x12);
 
@@ -1047,8 +1047,8 @@ int rra_opcode() {
 
     // Turn off the carry flag and decimal mode
 
-    fake6502_clear_carry(&f6502);
-    fake6502_clear_decimal(&f6502);
+    fake6502_carry_clear(&f6502);
+    fake6502_decimal_clear(&f6502);
 
     fake6502_mem_write(&f6502, 0x01, 0x02);
 
@@ -1084,20 +1084,20 @@ int ora_opcode() {
     f6502.cpu.pc = 0x200;
     f6502.cpu.a = 0x00;
     exec_instruction(&f6502, 0x09, 0x00, 0x00); // ora #$00
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
     CHECK(cpu.a, 0x00);
     exec_instruction(&f6502, 0x09, 0x01, 0x00); // ora #$01
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
     CHECK(cpu.a, 0x01);
     exec_instruction(&f6502, 0x09, 0x02, 0x00); // ora #$02
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
     CHECK(cpu.a, 0x03);
     exec_instruction(&f6502, 0x09, 0x82, 0x00); // ora #$82
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
     CHECK(cpu.a, 0x83);
 
     return(0);
@@ -1114,26 +1114,26 @@ int rol_opcode() {
 
     // Make sure Carry's clear
 
-    fake6502_clear_carry(&f6502);
+    fake6502_carry_clear(&f6502);
 
     exec_instruction(&f6502, 0x2a, 0x00, 0x00); // rol
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
     CHECK(cpu.a, 0x40);
 
     exec_instruction(&f6502, 0x2a, 0x00, 0x00); // rol
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
     CHECK(cpu.a, 0x80);
 
     exec_instruction(&f6502, 0x2a, 0x00, 0x00); // rol
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
     CHECK(cpu.a, 0x00);
 
     exec_instruction(&f6502, 0x2a, 0x00, 0x00); // rol
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
     CHECK(cpu.a, 0x01);
 
     return(0);
@@ -1157,12 +1157,12 @@ int rti_opcode() {
     exec_instruction(&f6502, 0x40, 0x00, 0x00); // rti
     CHECK(cpu.s, 0x00);
     CHECK(cpu.pc, 0x0302);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_INTERRUPT, 0);
-    CHECKFLAG(FAKE6502_FLAG_DECIMAL, 0);
-    CHECKFLAG(FAKE6502_FLAG_OVERFLOW, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_INTERRUPT_FLAG, 0);
+    CHECKFLAG(FAKE6502_DECIMAL_FLAG, 0);
+    CHECKFLAG(FAKE6502_OVERFLOW_FLAG, 0);
 
     return(0);
 }
@@ -1295,18 +1295,18 @@ int lax_opcode() {
 
     fake6502_mem_write(&f6502, 0xab, 0x00);
     exec_instruction(&f6502, 0xa7, 0xab, 0x00); // lax $ab
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 1);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 1);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     fake6502_mem_write(&f6502, 0xab, 0x7b);
     exec_instruction(&f6502, 0xa7, 0xab, 0x00); // lax $ab
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
 
     fake6502_mem_write(&f6502, 0xab, 0x8a);
     exec_instruction(&f6502, 0xa7, 0xab, 0x00); // lax $ab
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 1);
 
     return(0);
 }
@@ -1376,12 +1376,12 @@ int pushme_pullyou() {
     CHECK(cpu.y, 0x00);
     exec_instruction(&f6502, 0x28, 0x0, 0x0); // plp
     CHECK(cpu.s, 0xfc);
-    CHECKFLAG(FAKE6502_FLAG_CARRY, 1);
-    CHECKFLAG(FAKE6502_FLAG_ZERO, 0);
-    CHECKFLAG(FAKE6502_FLAG_INTERRUPT, 0);
-    CHECKFLAG(FAKE6502_FLAG_DECIMAL, 0);
-    CHECKFLAG(FAKE6502_FLAG_SIGN, 0);
-    CHECKFLAG(FAKE6502_FLAG_OVERFLOW, 0);
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
+    CHECKFLAG(FAKE6502_ZERO_FLAG, 0);
+    CHECKFLAG(FAKE6502_INTERRUPT_FLAG, 0);
+    CHECKFLAG(FAKE6502_DECIMAL_FLAG, 0);
+    CHECKFLAG(FAKE6502_SIGN_FLAG, 0);
+    CHECKFLAG(FAKE6502_OVERFLOW_FLAG, 0);
     exec_instruction(&f6502, 0x68, 0x0, 0x0); // pla
     CHECK(cpu.s, 0xfd);
     CHECK(cpu.a, 0xff);
@@ -1389,7 +1389,7 @@ int pushme_pullyou() {
     CHECK(cpu.s, 0xfc);
     exec_instruction(&f6502, 0xfa, 0x0, 0x0); // plx
     CHECK(cpu.s, 0xfd);
-    CHECK(cpu.x, (FAKE6502_FLAG_SIGN | FAKE6502_FLAG_CARRY | FAKE6502_FLAG_CONSTANT | FAKE6502_FLAG_BREAK));
+    CHECK(cpu.x, (FAKE6502_SIGN_FLAG | FAKE6502_CARRY_FLAG | FAKE6502_CONSTANT_FLAG | FAKE6502_BREAK_FLAG));
 
     return(0);
 }

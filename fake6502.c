@@ -24,7 +24,7 @@ See: <a href='./CHANGELOG.md'>CHANGELOG.md</a>
 
 \section f6502_version Version
 
-v2.2.0 - 22-06-2022
+v2.3.0 - 16-07-2022
 
 - - -
 
@@ -185,7 +185,7 @@ ie. at the next call to fake6502_step().
 // a few general functions used by various other functions
 
 void fake6502_push_8(fake6502_context *c, uint8_t pushval) {
-    fake6502_mem_write(c, FAKE6502_BASE_STACK + c->cpu.s--, pushval);
+    fake6502_mem_write(c, FAKE6502_STACK_BASE + c->cpu.s--, pushval);
 }
 
 void fake6502_push_16(fake6502_context *c, uint16_t pushval) {
@@ -193,7 +193,7 @@ void fake6502_push_16(fake6502_context *c, uint16_t pushval) {
     fake6502_push_8(c, pushval & 0xFF);
 }
 
-uint8_t fake6502_pull_8(fake6502_context *c) { return (fake6502_mem_read(c, FAKE6502_BASE_STACK + ++c->cpu.s)); }
+uint8_t fake6502_pull_8(fake6502_context *c) { return (fake6502_mem_read(c, FAKE6502_STACK_BASE + ++c->cpu.s)); }
 
 uint16_t fake6502_pull_16(fake6502_context *c) {
     uint8_t t;
@@ -386,15 +386,15 @@ uint8_t add8(fake6502_context *c, uint16_t a, uint16_t b, bool carry) {
     fake6502_sign_calc(c, result);
 
 #ifdef DECIMALMODE
-    if (c->cpu.flags & FAKE6502_FLAG_DECIMAL) {
-        fake6502_clear_carry(c);
+    if (c->cpu.flags & FAKE6502_DECIMAL_FLAG) {
+        fake6502_carry_clear(c);
 
         if ((result & 0x0F) > 0x09) {
             result += 0x06;
         }
         if ((result & 0xF0) > 0x90) {
             result += 0x60;
-            fake6502_set_carry(c);
+            fake6502_carry_set(c);
         }
 
         c->emu.clockticks++;
@@ -404,12 +404,12 @@ uint8_t add8(fake6502_context *c, uint16_t a, uint16_t b, bool carry) {
 }
 
 uint8_t rotate_right(fake6502_context *c, uint16_t value) {
-    uint16_t result = (value >> 1) | ((c->cpu.flags & FAKE6502_FLAG_CARRY) << 7);
+    uint16_t result = (value >> 1) | ((c->cpu.flags & FAKE6502_CARRY_FLAG) << 7);
 
     if (value & 1)
-        fake6502_set_carry(c);
+        fake6502_carry_set(c);
     else
-        fake6502_clear_carry(c);
+        fake6502_carry_clear(c);
     fake6502_zero_calc(c, result);
     fake6502_sign_calc(c, result);
 
@@ -417,7 +417,7 @@ uint8_t rotate_right(fake6502_context *c, uint16_t value) {
 }
 
 uint8_t rotate_left(fake6502_context *c, uint16_t value) {
-    uint16_t result = (value << 1) | (c->cpu.flags & FAKE6502_FLAG_CARRY);
+    uint16_t result = (value << 1) | (c->cpu.flags & FAKE6502_CARRY_FLAG);
 
     fake6502_carry_calc(c, result);
     fake6502_zero_calc(c, result);
@@ -429,9 +429,9 @@ uint8_t rotate_left(fake6502_context *c, uint16_t value) {
 uint8_t logical_shift_right(fake6502_context *c, uint8_t value) {
     uint16_t result = value >> 1;
     if (value & 1)
-        fake6502_set_carry(c);
+        fake6502_carry_set(c);
     else
-        fake6502_clear_carry(c);
+        fake6502_carry_clear(c);
     fake6502_zero_calc(c, result);
     fake6502_sign_calc(c, result);
 
@@ -483,13 +483,13 @@ void compare(fake6502_context *c, uint16_t r) {
     uint16_t result = r - value;
 
     if (r >= (uint8_t)(value & 0x00FF))
-        fake6502_set_carry(c);
+        fake6502_carry_set(c);
     else
-        fake6502_clear_carry(c);
+        fake6502_carry_clear(c);
     if (r == (uint8_t)(value & 0x00FF))
-        fake6502_set_zero(c);
+        fake6502_zero_set(c);
     else
-        fake6502_clear_zero(c);
+        fake6502_zero_clear(c);
     fake6502_sign_calc(c, result);
 }
 
@@ -500,12 +500,12 @@ void compare(fake6502_context *c, uint16_t r) {
 
 void adc(fake6502_context *c) {
     uint16_t value = fake6502_get_value(c);
-    fake6502_save_accum(c, add8(c, c->cpu.a, value, c->cpu.flags & FAKE6502_FLAG_CARRY));
+    fake6502_accum_save(c, add8(c, c->cpu.a, value, c->cpu.flags & FAKE6502_CARRY_FLAG));
 }
 
 void and(fake6502_context *c) {
     uint8_t m = fake6502_get_value(c);
-    fake6502_save_accum(c, boolean_and(c, c->cpu.a, m));
+    fake6502_accum_save(c, boolean_and(c, c->cpu.a, m));
 }
 
 void asl(fake6502_context *c) { fake6502_put_value(c, arithmetic_shift_left(c, fake6502_get_value(c))); }
@@ -520,17 +520,17 @@ void bra(fake6502_context *c) {
 }
 
 void bcc(fake6502_context *c) {
-    if ((c->cpu.flags & FAKE6502_FLAG_CARRY) == 0)
+    if ((c->cpu.flags & FAKE6502_CARRY_FLAG) == 0)
         bra(c);
 }
 
 void bcs(fake6502_context *c) {
-    if ((c->cpu.flags & FAKE6502_FLAG_CARRY) == FAKE6502_FLAG_CARRY)
+    if ((c->cpu.flags & FAKE6502_CARRY_FLAG) == FAKE6502_CARRY_FLAG)
         bra(c);
 }
 
 void beq(fake6502_context *c) {
-    if ((c->cpu.flags & FAKE6502_FLAG_ZERO) == FAKE6502_FLAG_ZERO)
+    if ((c->cpu.flags & FAKE6502_ZERO_FLAG) == FAKE6502_ZERO_FLAG)
         bra(c);
 }
 
@@ -550,45 +550,45 @@ void bit_imm(fake6502_context *c) {
 }
 
 void bmi(fake6502_context *c) {
-    if ((c->cpu.flags & FAKE6502_FLAG_SIGN) == FAKE6502_FLAG_SIGN)
+    if ((c->cpu.flags & FAKE6502_SIGN_FLAG) == FAKE6502_SIGN_FLAG)
         bra(c);
 }
 
 void bne(fake6502_context *c) {
-    if ((c->cpu.flags & FAKE6502_FLAG_ZERO) == 0)
+    if ((c->cpu.flags & FAKE6502_ZERO_FLAG) == 0)
         bra(c);
 }
 
 void bpl(fake6502_context *c) {
-    if ((c->cpu.flags & FAKE6502_FLAG_SIGN) == 0)
+    if ((c->cpu.flags & FAKE6502_SIGN_FLAG) == 0)
         bra(c);
 }
 
 void brk(fake6502_context *c) {
     c->cpu.pc++;
     fake6502_push_16(c, c->cpu.pc);                // push next instruction address onto stack
-    fake6502_push_8(c, c->cpu.flags | FAKE6502_FLAG_BREAK); // push CPU flags to stack
-    fake6502_set_interrupt(c);                 // set interrupt flag
+    fake6502_push_8(c, c->cpu.flags | FAKE6502_BREAK_FLAG); // push CPU flags to stack
+    fake6502_interrupt_set(c);                 // set interrupt flag
     c->cpu.pc = fake6502_mem_read16(c, 0xfffe);
 }
 
 void bvc(fake6502_context *c) {
-    if ((c->cpu.flags & FAKE6502_FLAG_OVERFLOW) == 0)
+    if ((c->cpu.flags & FAKE6502_OVERFLOW_FLAG) == 0)
         bra(c);
 }
 
 void bvs(fake6502_context *c) {
-    if ((c->cpu.flags & FAKE6502_FLAG_OVERFLOW) == FAKE6502_FLAG_OVERFLOW)
+    if ((c->cpu.flags & FAKE6502_OVERFLOW_FLAG) == FAKE6502_OVERFLOW_FLAG)
         bra(c);
 }
 
-void clc(fake6502_context *c) { fake6502_clear_carry(c); }
+void clc(fake6502_context *c) { fake6502_carry_clear(c); }
 
-void cld(fake6502_context *c) { fake6502_clear_decimal(c); }
+void cld(fake6502_context *c) { fake6502_decimal_clear(c); }
 
-void cli(fake6502_context *c) { fake6502_clear_interrupt(c); }
+void cli(fake6502_context *c) { fake6502_interrupt_clear(c); }
 
-void clv(fake6502_context *c) { fake6502_clear_overflow(c); }
+void clv(fake6502_context *c) { fake6502_overflow_clear(c); }
 
 void cmp(fake6502_context *c) { compare(c, c->cpu.a); }
 
@@ -602,7 +602,7 @@ void dex(fake6502_context *c) { c->cpu.x = decrement(c, c->cpu.x); }
 
 void dey(fake6502_context *c) { c->cpu.y = decrement(c, c->cpu.y); }
 
-void eor(fake6502_context *c) { fake6502_save_accum(c, exclusive_or(c, c->cpu.a, fake6502_get_value(c))); }
+void eor(fake6502_context *c) { fake6502_accum_save(c, exclusive_or(c, c->cpu.a, fake6502_get_value(c))); }
 
 void inc(fake6502_context *c) { fake6502_put_value(c, increment(c, fake6502_get_value(c))); }
 
@@ -652,7 +652,7 @@ void ora(fake6502_context *c) {
     fake6502_zero_calc(c, result);
     fake6502_sign_calc(c, result);
 
-    fake6502_save_accum(c, result);
+    fake6502_accum_save(c, result);
 }
 
 void pha(fake6502_context *c) { fake6502_push_8(c, c->cpu.a); }
@@ -661,7 +661,7 @@ void phx(fake6502_context *c) { fake6502_push_8(c, c->cpu.x); }
 
 void phy(fake6502_context *c) { fake6502_push_8(c, c->cpu.y); }
 
-void php(fake6502_context *c) { fake6502_push_8(c, c->cpu.flags | FAKE6502_FLAG_BREAK); }
+void php(fake6502_context *c) { fake6502_push_8(c, c->cpu.flags | FAKE6502_BREAK_FLAG); }
 
 void pla(fake6502_context *c) {
     c->cpu.a = fake6502_pull_8(c);
@@ -684,7 +684,7 @@ void ply(fake6502_context *c) {
     fake6502_sign_calc(c, c->cpu.y);
 }
 
-void plp(fake6502_context *c) { c->cpu.flags = fake6502_pull_8(c) | FAKE6502_FLAG_CONSTANT | FAKE6502_FLAG_BREAK; }
+void plp(fake6502_context *c) { c->cpu.flags = fake6502_pull_8(c) | FAKE6502_CONSTANT_FLAG | FAKE6502_BREAK_FLAG; }
 
 void rol(fake6502_context *c) {
     uint16_t value = fake6502_get_value(c);
@@ -701,7 +701,7 @@ void ror(fake6502_context *c) {
 }
 
 void rti(fake6502_context *c) {
-    c->cpu.flags = fake6502_pull_8(c) | FAKE6502_FLAG_CONSTANT | FAKE6502_FLAG_BREAK;
+    c->cpu.flags = fake6502_pull_8(c) | FAKE6502_CONSTANT_FLAG | FAKE6502_BREAK_FLAG;
     c->cpu.pc = fake6502_pull_16(c);
 }
 
@@ -710,7 +710,7 @@ void rts(fake6502_context *c) { c->cpu.pc = fake6502_pull_16(c) + 1; }
 void sbc(fake6502_context *c) {
     uint16_t value = fake6502_get_value(c);
     uint16_t result =
-        (uint16_t)c->cpu.a - value - ((c->cpu.flags & FAKE6502_FLAG_CARRY) ? 0 : 1);
+        (uint16_t)c->cpu.a - value - ((c->cpu.flags & FAKE6502_CARRY_FLAG) ? 0 : 1);
 
     fake6502_carry_calc(c, result);
     fake6502_zero_calc(c, result);
@@ -718,29 +718,29 @@ void sbc(fake6502_context *c) {
     fake6502_sign_calc(c, result);
 
 #ifndef NES_CPU
-    if (c->cpu.flags & FAKE6502_FLAG_DECIMAL) {
-        fake6502_clear_carry(c);
+    if (c->cpu.flags & FAKE6502_DECIMAL_FLAG) {
+        fake6502_carry_clear(c);
 
         if ((result & 0x0F) > 0x09) {
             result -= 0x06;
         }
         if ((result & 0xF0) > 0x90) {
             result -= 0x60;
-            fake6502_set_carry(c);
+            fake6502_carry_set(c);
         }
 
         c->emu.clockticks++;
     }
 #endif
 
-    fake6502_save_accum(c, result);
+    fake6502_accum_save(c, result);
 }
 
-void sec(fake6502_context *c) { fake6502_set_carry(c); }
+void sec(fake6502_context *c) { fake6502_carry_set(c); }
 
-void sed(fake6502_context *c) { fake6502_set_decimal(c); }
+void sed(fake6502_context *c) { fake6502_decimal_set(c); }
 
-void sei(fake6502_context *c) { fake6502_set_interrupt(c); }
+void sei(fake6502_context *c) { fake6502_interrupt_set(c); }
 
 void sta(fake6502_context *c) { fake6502_put_value(c, c->cpu.a); }
 
@@ -831,7 +831,7 @@ void rla(fake6502_context *c) {
     uint16_t result = rotate_left(c, value);
     fake6502_put_value(c, value);
     fake6502_put_value(c, result);
-    fake6502_save_accum(c, boolean_and(c, c->cpu.a, result));
+    fake6502_accum_save(c, boolean_and(c, c->cpu.a, result));
 }
 
 void sre(fake6502_context *c) {
@@ -839,7 +839,7 @@ void sre(fake6502_context *c) {
     uint16_t result = logical_shift_right(c, value);
     fake6502_put_value(c, value);
     fake6502_put_value(c, result);
-    fake6502_save_accum(c, exclusive_or(c, c->cpu.a, result));
+    fake6502_accum_save(c, exclusive_or(c, c->cpu.a, result));
 }
 
 void rra(fake6502_context *c) {
@@ -847,7 +847,7 @@ void rra(fake6502_context *c) {
     uint16_t result = rotate_right(c, value);
     fake6502_put_value(c, value);
     fake6502_put_value(c, result);
-    fake6502_save_accum(c, add8(c, c->cpu.a, result, c->cpu.flags & FAKE6502_FLAG_CARRY));
+    fake6502_accum_save(c, add8(c, c->cpu.a, result, c->cpu.flags & FAKE6502_CARRY_FLAG));
 }
 
 
@@ -1433,7 +1433,7 @@ void fake6502_reset(fake6502_context *c) {
     fake6502_mem_read(c, 0x01fe);
     c->cpu.pc = fake6502_mem_read16(c, 0xfffc);
     c->cpu.s = 0xfd;
-    c->cpu.flags |= FAKE6502_FLAG_CONSTANT | FAKE6502_FLAG_INTERRUPT;
+    c->cpu.flags |= FAKE6502_CONSTANT_FLAG | FAKE6502_INTERRUPT_FLAG;
 
     c->emu.instructions = 0;
     c->emu.clockticks = 0;
@@ -1441,16 +1441,16 @@ void fake6502_reset(fake6502_context *c) {
 
 void fake6502_nmi(fake6502_context *c) {
     fake6502_push_16(c, c->cpu.pc);
-    fake6502_push_8(c, c->cpu.flags & ~FAKE6502_FLAG_BREAK);
-    c->cpu.flags |= FAKE6502_FLAG_INTERRUPT;
+    fake6502_push_8(c, c->cpu.flags & ~FAKE6502_BREAK_FLAG);
+    c->cpu.flags |= FAKE6502_INTERRUPT_FLAG;
     c->cpu.pc = fake6502_mem_read16(c, 0xfffa);
 }
 
 void fake6502_irq(fake6502_context *c) {
-    if ((c->cpu.flags & FAKE6502_FLAG_INTERRUPT) == 0) {
+    if ((c->cpu.flags & FAKE6502_INTERRUPT_FLAG) == 0) {
         fake6502_push_16(c, c->cpu.pc);
-        fake6502_push_8(c, c->cpu.flags & ~FAKE6502_FLAG_BREAK);
-        c->cpu.flags |= FAKE6502_FLAG_INTERRUPT;
+        fake6502_push_8(c, c->cpu.flags & ~FAKE6502_BREAK_FLAG);
+        c->cpu.flags |= FAKE6502_INTERRUPT_FLAG;
         c->cpu.pc = fake6502_mem_read16(c, 0xfffe);
     }
 }
@@ -1458,7 +1458,7 @@ void fake6502_irq(fake6502_context *c) {
 void fake6502_step(fake6502_context *c) {
     uint8_t opcode = fake6502_mem_read(c, c->cpu.pc++);
     c->emu.opcode = opcode;
-    c->cpu.flags |= FAKE6502_FLAG_CONSTANT;
+    c->cpu.flags |= FAKE6502_CONSTANT_FLAG;
 
     opcodes[opcode].addr_mode(c);
     opcodes[opcode].opcode(c);
