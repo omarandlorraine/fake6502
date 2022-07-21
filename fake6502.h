@@ -37,6 +37,27 @@ extern "C" {
 // macro's
 // -------------------------------------------------------------------
 
+// operator fn prototypes
+
+#ifdef FAKE6502_OPS_STATIC
+
+#define FAKE6502_FN_OPCODE(m_name)      \
+  static void m_name(fake6502_context *c)
+
+#define FAKE6502_FN_ADDR_MODE(m_name)   \
+  static void m_name(fake6502_context *c)
+
+#else
+
+#define FAKE6502_FN_OPCODE(m_name)      \
+  void m_name(fake6502_context *c)
+
+#define FAKE6502_FN_ADDR_MODE(m_name)   \
+  void m_name(fake6502_context *c)
+
+#endif
+
+
 // c = a pointer to the fake6502_context
 
 
@@ -134,7 +155,7 @@ typedef struct fake6502_opcode {
 // global's
 // -------------------------------------------------------------------
 
-extern fake6502_opcode opcodes[];
+extern fake6502_opcode fake6502_opcodes[];
 
 
 // -------------------------------------------------------------------

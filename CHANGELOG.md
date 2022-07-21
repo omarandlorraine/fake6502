@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 
+## [2.4.0] - 19-07-2022
+
+Source code layout (and some test.c fn naming) updates:
+
+ - removed comments from end of code lines
+
+ - fn() { - moved to a new line
+
+ - tests.c: typedef struct test_t -> test_fn, added prefix 'test_' to fn names
+
+ - all addr/opcode fn's - a static option (by compile time #define option)
+
+ - return's - ensured braces around value
+
+
+
 ## [2.3.0] - 16-07-2022
 
 Updated all global names to have a common prefix: fake6502_
