@@ -15,12 +15,6 @@
 // define's
 // -------------------------------------------------------------------
 
-#if 0
-void adc(fake6502_context *c)
-{
-  printf("conflict\n");
-}
-#endif
 
 
 // -------------------------------------------------------------------
@@ -45,12 +39,12 @@ void adc(fake6502_context *c)
             __LINE__, shouldbe ? "" : "re", (f6502.cpu.flags & flag), shouldbe) );
 
 #define CHECKCYCLES(r, w)                                                      \
-    if (reads != r)                                                            \
-        return printf("line %d: %d reads instead of %d\n", __LINE__, reads,    \
-                      r);                                                      \
-    if (writes != w)                                                           \
-        return printf("line %d: %d writes instead of %d\n", __LINE__, writes,  \
-                      w);
+    if (test_reads != r)                                                            \
+        return( printf("line %d: %d reads instead of %d\n", __LINE__, test_reads,   \
+                      r) );                                                    \
+    if (test_writes != w)                                                           \
+        return( printf("line %d: %d writes instead of %d\n", __LINE__, test_writes, \
+                      w) );
 
 
 // -------------------------------------------------------------------
@@ -80,7 +74,7 @@ typedef struct test_fn {
 
 uint8_t test_mem[65536];
 
-int reads, writes;
+int test_reads, test_writes;
 
 test_host_state test_data;
 
@@ -93,13 +87,13 @@ test_host_state test_data;
 
 uint8_t fake6502_mem_read(fake6502_context *c, uint16_t addr)
 {
-    reads++;
+    test_reads++;
     return( ((test_host_state*)c->state_host)->memory[addr] );
 }
 
 void fake6502_mem_write(fake6502_context *c, uint16_t addr, uint8_t val)
 {
-    writes++;
+    test_writes++;
     ((test_host_state*)c->state_host)->memory[addr] = val;
 }
 
@@ -124,7 +118,7 @@ void test_exec_instruction(fake6502_context *cpu, uint8_t opcode, uint8_t op1,
     fake6502_mem_write(cpu, cpu->cpu.pc + 1, op1);
     fake6502_mem_write(cpu, cpu->cpu.pc + 2, op2);
 
-    cpu->emu.instructions = cpu->emu.clockticks = reads = writes = 0;
+    cpu->emu.instructions = cpu->emu.clockticks = test_reads = test_writes = 0;
 
     fake6502_step(cpu);
 }
