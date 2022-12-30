@@ -266,6 +266,17 @@ int test_decimal_mode()
     CHECK(cpu.pc, 0x20a);
     CHECK(cpu.a, 0x88);
 
+    // Check carry flag
+    f6502.cpu.a = 0x99;
+    fake6502_carry_set(&f6502);
+    test_exec_instruction(&f6502, 0x69, 0x99, 0x00); // ADC #$99
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
+
+    f6502.cpu.a = 0x99;
+    fake6502_carry_set(&f6502);
+    test_exec_instruction(&f6502, 0xe9, 0x0, 0x00); // SBC #$99
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 1);
+
     return(0);
 }
 
@@ -305,6 +316,10 @@ int test_binary_mode()
     test_exec_instruction(&f6502, 0xe9, 0x10, 0x00); // SBC #$10
     CHECK(cpu.pc, 0x20a);
     CHECK(cpu.a, 0x8c);
+
+    f6502.cpu.a = 0;
+    test_exec_instruction(&f6502, 0xe9, 0xff, 0x00); // SBC #$ff
+    CHECKFLAG(FAKE6502_CARRY_FLAG, 0);
 
     return(0);
 }

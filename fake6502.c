@@ -427,30 +427,20 @@ uint8_t add8(fake6502_context *c, uint16_t a, uint16_t b, bool carry)
 {
     uint16_t result = a + b + (uint16_t)(carry ? 1 : 0);
 
-    fake6502_carry_calc(c, result);
     fake6502_zero_calc(c, result);
     fake6502_overflow_calc(c, result, a, b);
     fake6502_sign_calc(c, result);
 
-#ifdef DECIMALMODE
-    if (c->cpu.flags & FAKE6502_DECIMAL_FLAG)
-    {
-        fake6502_carry_clear(c);
+    #ifdef DECIMALMODE
+    // Apply decimal mode fix from http://forum.6502.org/viewtopic.php?p=37758#p37758
+    if(c->cpu.flags & FAKE6502_DECIMAL_FLAG)
+        result += ((((result + 0x66) ^ (uint16_t)a ^ b) >> 3) & 0x22) * 3;
+    #endif
 
-        if ((result & 0x0F) > 0x09)
-        {
-            result += 0x06;
-        }
-        if ((result & 0xF0) > 0x90)
-        {
-            result += 0x60;
-            fake6502_carry_set(c);
-        }
+    fake6502_carry_calc(c, result);
 
-        c->emu.clockticks++;
-    }
-#endif
     return(result);
+
 }
 
 uint8_t rotate_right(fake6502_context *c, uint16_t value)
@@ -827,35 +817,15 @@ FAKE6502_FN_OPCODE(rts)
 
 FAKE6502_FN_OPCODE(sbc)
 {
-    uint16_t value = fake6502_get_value(c);
-    uint16_t result =
-        (uint16_t)c->cpu.a - value - ((c->cpu.flags & FAKE6502_CARRY_FLAG) ? 0 : 1);
+    uint16_t value = fake6502_get_value(c) ^ 0x00ff; // ones complement
 
-    fake6502_carry_calc(c, result);
-    fake6502_zero_calc(c, result);
-    fake6502_overflow_calc(c, result, c->cpu.a, value);
-    fake6502_sign_calc(c, result);
+    #ifdef DECIMALMODE
+        // Apply decimal mode fix from http://forum.6502.org/viewtopic.php?p=37758#p37758
+        if(c->cpu.flags & FAKE6502_DECIMAL_FLAG)
+          value -= 0x0066; // use nines complement for BCD
+    #endif
 
-#ifndef NES_CPU
-    if (c->cpu.flags & FAKE6502_DECIMAL_FLAG)
-    {
-        fake6502_carry_clear(c);
-
-        if ((result & 0x0F) > 0x09)
-        {
-            result -= 0x06;
-        }
-        if ((result & 0xF0) > 0x90)
-        {
-            result -= 0x60;
-            fake6502_carry_set(c);
-        }
-
-        c->emu.clockticks++;
-    }
-#endif
-
-    fake6502_accum_save(c, result);
+    fake6502_accum_save(c, add8(c, c->cpu.a, value, c->cpu.flags & FAKE6502_CARRY_FLAG));
 }
 
 FAKE6502_FN_OPCODE(sec)
