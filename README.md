@@ -14,13 +14,10 @@ support; this adds a few opcodes here and there). I might get round to adding
 support for other chips in the future.
 
 I've put a test harness around this. Coverage is currently at around 90%, which
-includes all of the documented NMOS instructions, and increasing as and when.
+includes all of the documented NMOS instructions.
 
+I would not recommend using this. There are better emulators out there,
+including the original fake6502 by Mike Chambers, and others that are both more
+accurate and more permissively licensed.
 
-## Contribute
-
-Contributions and issue reports are welcome.
-
-To add any updates (pull requestst), please also make sure you update
-the version number in fake6502.c,
-and add an appropriate entry in CHANGELOG.md
+Do not contribute to this project. It is dead. It is not going anywhere.
